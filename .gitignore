@@ -1,1 +1,3 @@
 data/*
+slurm-*
+*.pth
