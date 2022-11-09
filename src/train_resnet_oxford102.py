@@ -18,12 +18,12 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 
-NUM_EPOCHS = 50
+NUM_EPOCHS = 5
 EVAL_EPOCH_EVERY = 10
 # DATAPATH = "cifar-10-python"
 # TRAIN_BATCHES = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
 # TEST_BATCHES = ["test_batch"]
-NUM_TO_LABELS = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+# NUM_TO_LABELS = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
 normalize = transforms.Normalize(
    mean=[0.485, 0.456, 0.406],
@@ -31,22 +31,24 @@ normalize = transforms.Normalize(
 )
 trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(),normalize])
 
-trainset = torchvision.datasets.CIFAR10(
-    root='./data', train=True, download=True, transform=trans)
+trainset = torchvision.datasets.Flowers102(
+    root='./data', split='train', download=True, transform=trans)
 train_dl = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True, num_workers=2)
+    trainset, batch_size=128, shuffle=True#, num_workers=2
+    )
 
-testset = torchvision.datasets.CIFAR10(
-    root='./data', train=False, download=True, transform=trans)
+testset = torchvision.datasets.Flowers102(
+    root='./data', split='test', download=True, transform=trans)
 test_dl = torch.utils.data.DataLoader(
-    testset, batch_size=100, shuffle=False, num_workers=2)
+    testset, batch_size=100, shuffle=False#, num_workers=2
+    )
 
 
 
 def train_model(train_dl, model):
     criterion = nn.CrossEntropyLoss()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-3, momentum=0)
 
     train_losses = []
@@ -114,10 +116,11 @@ if __name__=="__main__":
         param.requires_grad = False
 
     # Change the last layer to cifar10 number of output classes, and then just finetune these layers
-    model.fc = nn.Sequential(
-        nn.Linear(2048, 256), 
-        nn.ReLU(), 
-        nn.Linear(256, 10)  # 10 CIFAR classes
+    num_feats = model.fc.in_features
+    model.fc = nn.Sequential(nn.Linear(num_feats, 1024),
+        nn.ReLU(),
+        nn.Dropout(0.1),
+        nn.Linear(1024, 102),   # 102 Oxford102 Flower categories
     )
     model = model.to(device)
 
@@ -129,3 +132,5 @@ if __name__=="__main__":
 
     test_loss, accuracy = evaluate_model(test_dl, model)
     logger.info(f"test_loss: {test_loss}, accuracy: {accuracy}")
+
+    torch.save(model.state_dict(), f"resnet50_oxford102_acc{accuracy:.02f}.pth")
