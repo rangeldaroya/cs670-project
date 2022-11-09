@@ -16,9 +16,11 @@ from torch import Tensor
 from torch.nn import Linear
 from torch.nn import Sigmoid, Tanh
 from torch.nn import Module
-from torch.nn import MSELoss
+import torch.nn as nn
 from torch.nn.init import xavier_uniform_
 from torch.utils.data.sampler import SubsetRandomSampler
+import torchvision
+import torchvision.transforms as transforms
 
 from tqdm import tqdm
 import pickle
@@ -32,20 +34,40 @@ TRAIN_BATCHES = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4",
 TEST_BATCHES = ["test_batch"]
 NUM_TO_LABELS = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
-def unpickle(file):
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
 
 
-def train_model(train_dl, val_dl, model):
-    criterion = MSELoss()
+transform_train = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),   # means and stddevs of RGB channels
+])
+
+transform_test = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),   # means and stddevs of RGB channels
+])
+
+trainset = torchvision.datasets.CIFAR10(
+    root='./data', train=True, download=True, transform=transform_train)
+train_dl = torch.utils.data.DataLoader(
+    trainset, batch_size=128, shuffle=True, num_workers=2)
+
+testset = torchvision.datasets.CIFAR10(
+    root='./data', train=False, download=True, transform=transform_test)
+test_dl = torch.utils.data.DataLoader(
+    testset, batch_size=100, shuffle=False, num_workers=2)
+
+
+
+def train_model(train_dl, model):
+    criterion = nn.CrossEntropyLoss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-3, momentum=0)
 
     train_losses = []
-    val_losses = []
+    # val_losses = []
     for epoch in tqdm(range(NUM_EPOCHS)):
         # print(f"Epoch {epoch+1:02d}/{NUM_EPOCHS}")
         model.train()
@@ -62,17 +84,14 @@ def train_model(train_dl, val_dl, model):
             train_losses_epoch += loss.item()
 
         train_losses.append(train_losses_epoch/len(train_dl))
-        if (epoch+1)%EVAL_EPOCH_EVERY==0:
-            print(f"Train MSE: {loss:.03f}")
-            mse = evaluate_model(val_dl, model)
-            val_losses.append(mse)
-            print('Val MSE: %.3f, RMSE: %.3f' % (mse, np.sqrt(mse)))
 
-    return train_losses, val_losses
+    return train_losses
 
 def evaluate_model(val_dl, model):
     model.eval()
+    criterion = nn.CrossEntropyLoss()
 
+    test_loss, num_correct, num_total = 0, 0, 0
     with torch.no_grad():
         predictions, actuals = list(), list()
         for i, (inputs, targets) in enumerate(val_dl):
@@ -82,50 +101,32 @@ def evaluate_model(val_dl, model):
             actual = targets.cpu().numpy()
             actual = actual.reshape((len(actual), 1))
             
-            predictions.append(yhat)
-            actuals.append(actual)
+            loss = criterion(yhat, targets)
+
+            test_loss += loss.item()
+            _, predicted = yhat.max(1)
+            num_total += targets.size(0)
+            num_correct += predicted.eq(targets).sum().item()
+
         
-        predictions, actuals = np.vstack(predictions), np.vstack(actuals)
-        mse = mean_squared_error(actuals, predictions)
-    return mse
+        # predictions, actuals = np.vstack(predictions), np.vstack(actuals)
+        # mse = mean_squared_error(actuals, predictions)
+    accuracy = num_correct/num_total
+    return test_loss, accuracy
 
 if __name__=="__main__":
     logger.debug("Hello world")
 
     # Check for GPU
-    # if torch.cuda.is_available():  
-    #     dev = "cuda:0"
-    #     logger.debug(f"Found GPU. Using: {dev}")
-    # else:  
-    #     dev = "cpu"
-    dev = "cpu"
+    if torch.cuda.is_available():  
+        dev = "cuda:0"
+        logger.debug(f"Found GPU. Using: {dev}")
+    else:  
+        dev = "cpu"
+    # dev = "cpu"
     device = torch.device(dev) 
-
-    train_imgs = []
-    all_labels = []
-    for fn in TRAIN_BATCHES:
-        fp = os.path.join(DATAPATH, fn)
-        data = unpickle(fp)
-        # logger.debug(f"data: {data.keys()}")
-
-        # logger.debug(f"data[b'labels'].shape: {len(data[b'labels'])}")
-        imgs = data[b'data']
-        # logger.debug(f"img.shape: {imgs.shape}")
-        num_imgs = imgs.shape[0]
-        reshaped_imgs = np.reshape(imgs,(num_imgs,3,32,32))  # Each CIFAR image is 32x32
-        rgb_imgs = np.swapaxes(reshaped_imgs,2,3)
-        rgb_imgs = np.swapaxes(rgb_imgs,1,3)    # dim: n x 32 x 32 x 3 (n=num of imgs; 3=num of channels)
-        # logger.debug(f"label: {data[b'labels'][0]}")
-        # logger.debug(f"rgb_imgs.shape: {rgb_imgs.shape}")
-        plt.imshow(rgb_imgs[0])
-        plt.savefig("samp.jpg")
-        train_imgs.append(rgb_imgs)
-        all_labels += data[b'labels']
-        # break
-    all_imgs = np.concatenate(train_imgs, axis=0)
-    logger.debug(f"all_imgs: {all_imgs.shape}")
-
 
     model = resnet50()
     model = model.to(device)
-    # train_losses, val_losses = train_model(train_dl, val_dl, model)
+    
+    train_losses, val_losses = train_model(train_dl, model)
