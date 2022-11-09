@@ -10,3 +10,5 @@
         - activate environment: `conda activate cs670-project`
         - install pytorch 1.12.1: `conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 -c pytorch`
 3. Install additional packages with: `pip install -r requirements.txt`
+4. Run scripts
+    - To train resnet50 on cifar: `python src/train_resnet.py`
