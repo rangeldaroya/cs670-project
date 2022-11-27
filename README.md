@@ -14,3 +14,6 @@
     - To train resnet50 on cifar: 
         - Local: `python src/train_resnet_cifar10.py`
         - Unity: `sbatch script_cifar.sh`
+5. To run scripts for explainability frameworks:
+    - Lime: Create directories: `output/lime/cifar`, `output/lime/oxford`, `output/lime/cub`
+    - Semantic CVE: Create directories:  `output/semantic-cve/cifar`, `output/semantic-cve/oxford`, `output/semantic-cve/cub`
