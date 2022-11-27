@@ -18,8 +18,10 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 50
 EVAL_EPOCH_EVERY = 10
+TRAIN_BATCH_SIZE = 26
+TEST_BATCH_SIZE = 100
 # DATAPATH = "cifar-10-python"
 # TRAIN_BATCHES = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
 # TEST_BATCHES = ["test_batch"]
@@ -34,13 +36,13 @@ trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), 
 trainset = torchvision.datasets.CIFAR10(
     root='./data', train=True, download=True, transform=trans)
 train_dl = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True#, num_workers=2
+    trainset, batch_size=TRAIN_BATCH_SIZE, shuffle=True#, num_workers=2
     )
 
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=trans)
 test_dl = torch.utils.data.DataLoader(
-    testset, batch_size=100, shuffle=False#, num_workers=2
+    testset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
     )
 
 
@@ -119,7 +121,8 @@ if __name__=="__main__":
     model.fc = nn.Sequential(
         nn.Linear(2048, 256), 
         nn.ReLU(), 
-        nn.Linear(256, 10)  # 10 CIFAR classes
+        nn.Linear(256, 10),  # 10 CIFAR classes
+        nn.Softmax(dim=1),
     )
     model = model.to(device)
 

@@ -121,6 +121,7 @@ if __name__=="__main__":
         nn.ReLU(),
         nn.Dropout(0.1),
         nn.Linear(1024, 102),   # 102 Oxford102 Flower categories
+        nn.Softmax(dim=1),
     )
     model = model.to(device)
 
