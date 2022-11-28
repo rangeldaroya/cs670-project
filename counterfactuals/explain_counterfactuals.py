@@ -56,7 +56,8 @@ def main():
         Path.output_root_dir(),
         config["counterfactuals_kwargs"]["model"],
     )
-    state_dict = torch.load(model_path)["state_dict"]
+    state_dict = torch.load(model_path, map_location=torch.device('cpu'))["state_dict"]
+    # state_dict = torch.load(model_path)["state_dict"]
     for key in list(state_dict.keys()):
         state_dict[key[len("model.") :]] = state_dict[key]
         del state_dict[key]
@@ -82,7 +83,8 @@ def main():
 
     # get classifier head
     classifier_head = model.get_classifier_head()
-    classifier_head = torch.nn.DataParallel(classifier_head.cuda())
+    classifier_head = torch.nn.DataParallel(classifier_head)
+    # classifier_head = torch.nn.DataParallel(classifier_head.cuda())
     classifier_head.eval()
 
     # auxiliary features for soft constraint
