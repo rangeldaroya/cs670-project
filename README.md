@@ -24,3 +24,4 @@
             - `pip install pytorch-lightning`
             - `pip install -U albumentations`
             - `pip install pandas`
+        - Run the code: `python explain_counterfactuals.py --config_path configs/counterfactuals/counterfactuals_ours_cub_res50.yaml`
