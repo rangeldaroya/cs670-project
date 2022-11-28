@@ -1,3 +1,9 @@
 data/*
 slurm-*
 *.pth
+
+counterfactuals/output/*
+counterfactuals/utils/__pycache__/*
+counterfactuals/model/__pycache__/*
+counterfactuals/data/__pycache__/*
+counterfactuals/explainer/__pycache__/*
