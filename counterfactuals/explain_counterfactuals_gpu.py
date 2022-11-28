@@ -11,6 +11,12 @@ import model.auxiliary_model as auxiliary_model
 import numpy as np
 import torch
 import yaml
+from torchvision import models, transforms
+from torch.autograd import Variable
+import torch.nn.functional as F
+import torchvision
+from torchvision.models import resnet50, ResNet50_Weights
+from torch import nn
 
 from explainer.counterfactuals import compute_counterfactual
 from explainer.eval import compute_eval_metrics
@@ -23,11 +29,40 @@ from utils.common_config import (
     get_test_dataset,
     get_test_transform,
 )
+
 from utils.path import Path
+from torch.utils.data import Dataset
 
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
 
+
+class SampleData(Dataset):
+    def __init__(self, data):
+        self.data = torch.FloatTensor(data.values.astype('float'))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        target = self.data[index][-1]
+        data_val = self.data[index][:-1]
+        return {"target":target, "inputs":data_val}
+        
+    def get_target(self, target):
+        return (
+            np.argwhere(np.array(self._data["target"].tolist()) == target + 1)
+            .reshape(-1)
+            .tolist()
+        )
+
+def get_classifier_head(model):
+    return nn.Sequential(
+        model.layer4[1:],
+        model.avgpool,
+        nn.Flatten(start_dim=1),
+        model.fc,
+    )
 
 def main():
     args = parser.parse_args()
@@ -41,8 +76,19 @@ def main():
     os.makedirs(dirpath, exist_ok=True)
 
     # create dataset
-    dataset = get_test_dataset(transform=get_test_transform())
-    dataloader = get_test_dataloader(config, dataset)
+    # dataset = get_test_dataset(transform=get_test_transform())
+    # dataloader = get_test_dataloader(config, dataset)
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+    trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
+    dataset = torchvision.datasets.CIFAR10(
+        root='./data', train=False, download=True, transform=trans)
+    # dataset = Cifar()
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=1, shuffle=False#, num_workers=2
+    )
 
     # device
     assert torch.cuda.is_available()
@@ -51,17 +97,38 @@ def main():
 
     # load classifier
     print("Load classification model weights")
-    model = get_model(config)
-    model_path = os.path.join(
-        Path.output_root_dir(),
-        config["counterfactuals_kwargs"]["model"],
-    )
+    # model = get_model(config)
+    # model_path = os.path.join(
+    #     Path.output_root_dir(),
+    #     config["counterfactuals_kwargs"]["model"],
+    # )
     # state_dict = torch.load(model_path, map_location=torch.device('cpu'))["state_dict"]
-    state_dict = torch.load(model_path)["state_dict"]
-    for key in list(state_dict.keys()):
-        state_dict[key[len("model.") :]] = state_dict[key]
-        del state_dict[key]
-    model.load_state_dict(state_dict, strict=True)
+    # state_dict = torch.load(model_path)["state_dict"]
+    # for key in list(state_dict.keys()):
+    #     state_dict[key[len("model.") :]] = state_dict[key]
+    #     del state_dict[key]
+    # model.load_state_dict(state_dict, strict=True)
+    MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/resnet50_cifar10_acc0.82.pth"
+    # state_dict = torch.load(MODEL_PATH)
+    # for key in list(state_dict.keys()):
+    #     state_dict[key[len("model.") :]] = state_dict[key]
+    #     del state_dict[key]
+    # model.load_state_dict(state_dict, strict=True)
+    # model = model.to(device)
+
+    model = resnet50(weights=ResNet50_Weights.DEFAULT)
+    model.fc = nn.Sequential(
+        nn.Linear(2048, 256), 
+        nn.ReLU(), 
+        nn.Linear(256, 10)  # 10 CIFAR classes
+    )
+    model.load_state_dict(torch.load(MODEL_PATH))
+    # print(model)
+    print("Done loading model")
+    # print(model.layer1)
+
+
+
 
     # process dataset
     print("Pre-compute classifier predictions")
@@ -82,7 +149,8 @@ def main():
     )
 
     # get classifier head
-    classifier_head = model.get_classifier_head()
+    # classifier_head = model.get_classifier_head()
+    classifier_head = get_classifier_head(model)
     # classifier_head = torch.nn.DataParallel(classifier_head)
     classifier_head = torch.nn.DataParallel(classifier_head.cuda())
     classifier_head.eval()
@@ -91,9 +159,14 @@ def main():
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
-        aux_transform = get_imagenet_test_transform()
-        aux_dataset = get_test_dataset(transform=aux_transform, return_image_only=True)
-        aux_loader = get_test_dataloader(config, aux_dataset)
+        # aux_transform = get_imagenet_test_transform()
+        # aux_dataset = get_test_dataset(transform=aux_transform, return_image_only=True)
+        # aux_loader = get_test_dataloader(config, aux_dataset)
+        aux_dataset = torchvision.datasets.CIFAR10(
+            root='./data', train=False, download=True, transform=trans)
+        aux_loader = torch.utils.data.DataLoader(
+            aux_dataset, batch_size=1, shuffle=False#, num_workers=2
+        )
 
         auxiliary_features = auxiliary_model.process_dataset(
             aux_model,

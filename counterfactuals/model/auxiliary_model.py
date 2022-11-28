@@ -31,9 +31,9 @@ def process_dataset(model, dim, n_pix, dataloader, device):
     features = torch.FloatTensor(len(dataloader.dataset), dim, n_pix, n_pix)
     idx = 0
 
-    for batch in dataloader:
-        batch_size = batch.shape[0]
-        output = model(batch.to(device)).reshape(batch_size, dim, n_pix, n_pix)
+    for idx, (images, targets) in enumerate(dataloader):
+        batch_size = images.shape[0]
+        output = model(images.to(device)).reshape(batch_size, dim, n_pix, n_pix)
         features[idx : idx + batch_size].copy_(output)
         idx += batch_size
 
