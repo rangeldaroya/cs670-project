@@ -23,7 +23,8 @@ def visualize_counterfactuals(
     query_img_label = dataset.__getitem__(query_index)[1]
     query_img = np.swapaxes(query_img, 0,1)
     query_img = np.swapaxes(query_img, 1,2)
-    # query_img = (query_img-np.min(query_img,axis=0))/(np.max(query_img,axis=0)-np.min(query_img,axis=0))
+    query_img = query_img.detach().cpu().numpy()
+    query_img = (query_img-np.min(query_img,axis=0))/(np.max(query_img,axis=0)-np.min(query_img,axis=0))
     height, width = query_img.shape[0], query_img.shape[1]
 
     # geometric properties of cells
@@ -53,12 +54,20 @@ def visualize_counterfactuals(
             edgecolor="r",
             facecolor="none",
         )
-        axes[ii,0].imshow(query_img)
-        axes[ii,0].add_patch(rect)
-        axes[ii,0].get_xaxis().set_ticks([])
-        axes[ii,0].get_yaxis().set_ticks([])
-        if ii == 0:
-            axes[ii,0].set_title(f"Query: {idx2label[query_img_label]}")
+        if n_edits>1:
+            axes[ii,0].imshow(query_img)
+            axes[ii,0].add_patch(rect)
+            axes[ii,0].get_xaxis().set_ticks([])
+            axes[ii,0].get_yaxis().set_ticks([])
+            if ii == 0:
+                axes[ii,0].set_title(f"Query: {idx2label[query_img_label]}")
+        else:
+            axes[0].imshow(query_img)
+            axes[0].add_patch(rect)
+            axes[0].get_xaxis().set_ticks([])
+            axes[0].get_yaxis().set_ticks([])
+            if ii == 0:
+                axes[0].set_title(f"Query: {idx2label[query_img_label]}")
 
         # show distractor
         cell_index_distractor = edit[1]
@@ -85,13 +94,22 @@ def visualize_counterfactuals(
 
         img_distractor = np.swapaxes(img_distractor, 0,1)
         img_distractor = np.swapaxes(img_distractor, 1,2)
-        # img_distractor = (img_distractor-np.min(img_distractor))/(np.max(img_distractor)-np.min(img_distractor))
-        axes[ii,1].imshow(img_distractor)
-        axes[ii,1].add_patch(rect)
-        axes[ii,1].get_xaxis().set_ticks([])
-        axes[ii,1].get_yaxis().set_ticks([])
-        if ii == 0:
-            axes[ii,1].set_title(f"Distractor: {idx2label[img_distractor_label]}")
+        img_distractor = img_distractor.detach().cpu().numpy()
+        img_distractor = (img_distractor-np.min(img_distractor))/(np.max(img_distractor)-np.min(img_distractor))
+        if n_edits>1:
+            axes[ii,1].imshow(img_distractor)
+            axes[ii,1].add_patch(rect)
+            axes[ii,1].get_xaxis().set_ticks([])
+            axes[ii,1].get_yaxis().set_ticks([])
+            if ii == 0:
+                axes[ii,1].set_title(f"Distractor: {idx2label[img_distractor_label]}")
+        else:
+            axes[1].imshow(img_distractor)
+            axes[1].add_patch(rect)
+            axes[1].get_xaxis().set_ticks([])
+            axes[1].get_yaxis().set_ticks([])
+            if ii == 0:
+                axes[1].set_title(f"Distractor: {idx2label[img_distractor_label]}")
         print(f"Distractor: {idx2label[img_distractor_label]}")
 
     # save or view
