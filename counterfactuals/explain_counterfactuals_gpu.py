@@ -35,7 +35,7 @@ from torch.utils.data import Dataset
 
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
-
+TEST_BATCH_SIZE = 1
 
 class SampleData(Dataset):
     def __init__(self, data):
@@ -85,9 +85,8 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     dataset = torchvision.datasets.CIFAR10(
         root='./data', train=False, download=True, transform=trans)
-    # dataset = Cifar()
     dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=False#, num_workers=2
+        dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
     )
 
     # device
@@ -165,7 +164,7 @@ def main():
         aux_dataset = torchvision.datasets.CIFAR10(
             root='./data', train=False, download=True, transform=trans)
         aux_loader = torch.utils.data.DataLoader(
-            aux_dataset, batch_size=1, shuffle=False#, num_workers=2
+            aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
         )
 
         auxiliary_features = auxiliary_model.process_dataset(
@@ -265,13 +264,14 @@ def main():
     average_num_edits = np.mean([len(res["edits"]) for res in counterfactuals.values()])
     print("Average number of edits is {:.2f}".format(average_num_edits))
 
-    result = compute_eval_metrics(
-        counterfactuals,
-        dataset=dataset,
-    )
+    # The following code uses parts to evaluate metrics
+    # result = compute_eval_metrics(
+    #     counterfactuals,
+    #     dataset=dataset,
+    # )
 
-    print("Eval results single edit: {}".format(result["single_edit"]))
-    print("Eval results all edits: {}".format(result["all_edit"]))
+    # print("Eval results single edit: {}".format(result["single_edit"]))
+    # print("Eval results all edits: {}".format(result["all_edit"]))
 
 
 if __name__ == "__main__":
