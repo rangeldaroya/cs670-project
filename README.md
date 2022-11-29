@@ -26,4 +26,5 @@
             - `pip install pandas`
         - Run the code with one of the ff: 
             - `python explain_counterfactuals.py --config_path configs/counterfactuals/counterfactuals_ours_cub_res50.yaml`
-            - `python explain_counterfactuals_gpu.py --config_path configs/counterfactuals/counterfactuals_ours_cifar_res50.yaml`
+            - `python explain_counterfactuals_cifar_gpu.py --config_path configs/counterfactuals/counterfactuals_ours_cifar_res50.yaml`
+            - `python explain_counterfactuals_oxford_gpu.py --config_path configs/counterfactuals/counterfactuals_ours_oxford_res50.yaml`
