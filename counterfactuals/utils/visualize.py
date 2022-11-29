@@ -6,6 +6,7 @@
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def visualize_counterfactuals(
@@ -15,9 +16,14 @@ def visualize_counterfactuals(
     dataset,
     n_pix,
     fname=None,
+    idx2label=None,
 ):
     # load image
-    query_img = dataset.__getitem__(query_index)
+    query_img = dataset.__getitem__(query_index)[0]
+    query_img_label = dataset.__getitem__(query_index)[1]
+    query_img = np.swapaxes(query_img, 0,1)
+    query_img = np.swapaxes(query_img, 1,2)
+    # query_img = (query_img-np.min(query_img,axis=0))/(np.max(query_img,axis=0)-np.min(query_img,axis=0))
     height, width = query_img.shape[0], query_img.shape[1]
 
     # geometric properties of cells
@@ -47,19 +53,19 @@ def visualize_counterfactuals(
             edgecolor="r",
             facecolor="none",
         )
-
         axes[ii,0].imshow(query_img)
         axes[ii,0].add_patch(rect)
         axes[ii,0].get_xaxis().set_ticks([])
         axes[ii,0].get_yaxis().set_ticks([])
         if ii == 0:
-            axes[ii,0].set_title("Query")
+            axes[ii,0].set_title(f"Query: {idx2label[query_img_label]}")
 
         # show distractor
         cell_index_distractor = edit[1]
 
         index_distractor = distractor_index[cell_index_distractor // (n_pix**2)]
-        img_distractor = dataset.__getitem__(index_distractor)
+        img_distractor = dataset.__getitem__(index_distractor)[0]
+        img_distractor_label = dataset.__getitem__(index_distractor)[1]
 
         cell_index_distractor = cell_index_distractor % (n_pix**2)
         row_index_distractor = cell_index_distractor // n_pix
@@ -77,12 +83,16 @@ def visualize_counterfactuals(
             facecolor="none",
         )
 
+        img_distractor = np.swapaxes(img_distractor, 0,1)
+        img_distractor = np.swapaxes(img_distractor, 1,2)
+        # img_distractor = (img_distractor-np.min(img_distractor))/(np.max(img_distractor)-np.min(img_distractor))
         axes[ii,1].imshow(img_distractor)
         axes[ii,1].add_patch(rect)
         axes[ii,1].get_xaxis().set_ticks([])
         axes[ii,1].get_yaxis().set_ticks([])
         if ii == 0:
-            axes[ii,1].set_title("Distractor")
+            axes[ii,1].set_title(f"Distractor: {idx2label[img_distractor_label]}")
+        print(f"Distractor: {idx2label[img_distractor_label]}")
 
     # save or view
     plt.tight_layout()

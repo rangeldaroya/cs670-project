@@ -8,23 +8,35 @@ import argparse
 import os
 
 import numpy as np
+import torchvision
+from torchvision import models, transforms
 
 from utils.common_config import get_test_dataset, get_vis_transform
 from utils.path import Path
 from utils.visualize import visualize_counterfactuals
 
 
-parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
-parser.add_argument("--config_path", type=str, required=True)
+idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+# parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
+# parser.add_argument("--config_path", type=str, required=True)
 
 
 def main():
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    experiment_name = os.path.basename(args.config_path).split(".")[0]
-    dirpath = os.path.join(Path.output_root_dir(), experiment_name)
+    # experiment_name = os.path.basename(args.config_path).split(".")[0]
+    # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
+    dirpath = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/output/counterfactuals_ours_cifar_res50"
 
-    dataset = get_test_dataset(get_vis_transform(), return_image_only=True)
+    # dataset = get_test_dataset(get_vis_transform(), return_image_only=True)
+
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+    trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
+    dataset = torchvision.datasets.CIFAR10(
+        root='./data', train=False, download=True, transform=trans)
 
     counterfactuals = np.load(
         os.path.join(dirpath, "counterfactuals.npy"), allow_pickle=True
@@ -39,7 +51,8 @@ def main():
             distractor_index=cf["distractor_index"],
             dataset=dataset,
             n_pix=7,
-            fname=f"example_{idx}.png",
+            fname=f"output/counterfactuals_cifar_demo/example_{idx}.png",
+            idx2label=idx2label,
         )
 
 
