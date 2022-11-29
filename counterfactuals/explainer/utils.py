@@ -10,18 +10,12 @@ import torchmetrics
 
 from sklearn.metrics import confusion_matrix
 
-def get_dataset_targets(dataset, distractor_class):
-    return (
-        np.argwhere(np.array(dataset.targets) == distractor_class + 1)
-        .reshape(-1)
-        .tolist()
-    )
-
 
 def get_query_distractor_pairs(
     dataset,
     confusion_matrix,
     max_num_distractors,
+    get_dataset_targets,
     seed=0,
 ):
     """
@@ -67,30 +61,8 @@ def get_query_distractor_pairs(
     return result
 
 
-def get_model_feats_logits(model, inp):
-    def features(x):
-        x = model.conv1(x)
-        x = model.bn1(x)
-        x = model.relu(x)
-        x = model.maxpool(x)
-
-        x = model.layer1(x)
-        x = model.layer2(x)
-        x = model.layer3(x)
-        x = model.layer4[0](x)
-        return x
-    def classifier(x):
-        x = model.layer4[1:](x)
-        x = model.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = model.fc(x)
-        return x
-    feats = features(inp)
-    logits = classifier(feats)
-    return {"features": feats, "logits": logits}
-
 @torch.no_grad()
-def process_dataset(model, dataloader, device):
+def process_dataset(model, dataloader, device, get_model_feats_logits):
     """
     Process a dataset using a pre-trained classification model.
     We return the spatial feature representations, the predictions,
@@ -107,11 +79,8 @@ def process_dataset(model, dataloader, device):
     preds = []
     targets = []
 
-    for batch, (images, target) in enumerate(dataloader):
-        # images, target = batch["image"].to(device), batch["target"].to(device)
+    for _, (images, target) in enumerate(dataloader):
         images, target = images.to(device), target.to(device)
-        # print(f"images: {images.shape}, target:{target.shape}")
-        # output = model(images)
         output = get_model_feats_logits(model, images)
         top1(output["logits"], target)
 

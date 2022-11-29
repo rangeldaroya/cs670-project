@@ -21,6 +21,8 @@ def visualize_counterfactuals(
     # load image
     query_img = dataset.__getitem__(query_index)[0]
     query_img_label = dataset.__getitem__(query_index)[1]
+    print(f"\nQuery label: {idx2label[query_img_label]}, [{query_img_label}]")
+
     query_img = np.swapaxes(query_img, 0,1)
     query_img = np.swapaxes(query_img, 1,2)
     query_img = query_img.detach().cpu().numpy()
@@ -110,7 +112,7 @@ def visualize_counterfactuals(
             axes[1].get_yaxis().set_ticks([])
             if ii == 0:
                 axes[1].set_title(f"Distractor: {idx2label[img_distractor_label]}")
-        print(f"Distractor: {idx2label[img_distractor_label]}")
+        print(f"Distractor: {idx2label[img_distractor_label]}, [{img_distractor_label}]")
 
     # save or view
     plt.tight_layout()

@@ -11,50 +11,44 @@ import model.auxiliary_model as auxiliary_model
 import numpy as np
 import torch
 import yaml
-from torchvision import models, transforms
-from torch.autograd import Variable
-import torch.nn.functional as F
+from torchvision import transforms
 import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 from torch import nn
 
 from explainer.counterfactuals import compute_counterfactual
-from explainer.eval import compute_eval_metrics
 from explainer.utils import get_query_distractor_pairs, process_dataset
 from tqdm import tqdm
-from utils.common_config import (
-    get_imagenet_test_transform,
-    get_model,
-    get_test_dataloader,
-    get_test_dataset,
-    get_test_transform,
-)
 
 from utils.path import Path
-from torch.utils.data import Dataset
 
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
 TEST_BATCH_SIZE = 1
+MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
 
-class SampleData(Dataset):
-    def __init__(self, data):
-        self.data = torch.FloatTensor(data.values.astype('float'))
 
-    def __len__(self):
-        return len(self.data)
+def get_model_feats_logits(model, inp):
+    def features(x):
+        x = model.conv1(x)
+        x = model.bn1(x)
+        x = model.relu(x)
+        x = model.maxpool(x)
 
-    def __getitem__(self, index):
-        target = self.data[index][-1]
-        data_val = self.data[index][:-1]
-        return {"target":target, "inputs":data_val}
-        
-    def get_target(self, target):
-        return (
-            np.argwhere(np.array(self._data["target"].tolist()) == target + 1)
-            .reshape(-1)
-            .tolist()
-        )
+        x = model.layer1(x)
+        x = model.layer2(x)
+        x = model.layer3(x)
+        x = model.layer4[0](x)
+        return x
+    def classifier(x):
+        x = model.layer4[1:](x)
+        x = model.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = model.fc(x)
+        return x
+    feats = features(inp)
+    logits = classifier(feats)
+    return {"features": feats, "logits": logits}
 
 def get_classifier_head(model):
     return nn.Sequential(
@@ -62,6 +56,13 @@ def get_classifier_head(model):
         model.avgpool,
         nn.Flatten(start_dim=1),
         model.fc,
+    )
+
+def get_dataset_targets(dataset, distractor_class):
+    return (
+        np.argwhere(np.array(dataset.targets) == distractor_class + 1)
+        .reshape(-1)
+        .tolist()
     )
 
 def main():
@@ -76,8 +77,6 @@ def main():
     os.makedirs(dirpath, exist_ok=True)
 
     # create dataset
-    # dataset = get_test_dataset(transform=get_test_transform())
-    # dataloader = get_test_dataloader(config, dataset)
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
@@ -96,25 +95,6 @@ def main():
 
     # load classifier
     print("Load classification model weights")
-    # model = get_model(config)
-    # model_path = os.path.join(
-    #     Path.output_root_dir(),
-    #     config["counterfactuals_kwargs"]["model"],
-    # )
-    # state_dict = torch.load(model_path, map_location=torch.device('cpu'))["state_dict"]
-    # state_dict = torch.load(model_path)["state_dict"]
-    # for key in list(state_dict.keys()):
-    #     state_dict[key[len("model.") :]] = state_dict[key]
-    #     del state_dict[key]
-    # model.load_state_dict(state_dict, strict=True)
-    MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/resnet50_cifar10_acc0.82.pth"
-    # state_dict = torch.load(MODEL_PATH)
-    # for key in list(state_dict.keys()):
-    #     state_dict[key[len("model.") :]] = state_dict[key]
-    #     del state_dict[key]
-    # model.load_state_dict(state_dict, strict=True)
-    # model = model.to(device)
-
     model = resnet50(weights=ResNet50_Weights.DEFAULT)
     model.fc = nn.Sequential(
         nn.Linear(2048, 256), 
@@ -122,16 +102,10 @@ def main():
         nn.Linear(256, 10)  # 10 CIFAR classes
     )
     model.load_state_dict(torch.load(MODEL_PATH))
-    # print(model)
-    print("Done loading model")
-    # print(model.layer1)
-
-
-
 
     # process dataset
     print("Pre-compute classifier predictions")
-    result = process_dataset(model, dataloader, device)
+    result = process_dataset(model, dataloader, device, get_model_feats_logits)
     features = result["features"]
     preds = result["preds"].numpy()
     targets = result["targets"].numpy()
@@ -142,15 +116,14 @@ def main():
     query_distractor_pairs = get_query_distractor_pairs(
         dataset,
         confusion_matrix=result["confusion_matrix"],
+        get_dataset_targets=get_dataset_targets,
         max_num_distractors=config["counterfactuals_kwargs"][
             "max_num_distractors"
         ],  # noqa
     )
 
     # get classifier head
-    # classifier_head = model.get_classifier_head()
     classifier_head = get_classifier_head(model)
-    # classifier_head = torch.nn.DataParallel(classifier_head)
     classifier_head = torch.nn.DataParallel(classifier_head.cuda())
     classifier_head.eval()
 
@@ -158,9 +131,6 @@ def main():
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
-        # aux_transform = get_imagenet_test_transform()
-        # aux_dataset = get_test_dataset(transform=aux_transform, return_image_only=True)
-        # aux_loader = get_test_dataloader(config, aux_dataset)
         aux_dataset = torchvision.datasets.CIFAR10(
             root='./data', train=False, download=True, transform=trans)
         aux_loader = torch.utils.data.DataLoader(

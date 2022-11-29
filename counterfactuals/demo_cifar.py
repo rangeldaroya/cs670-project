@@ -4,15 +4,12 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import argparse
 import os
 
 import numpy as np
 import torchvision
-from torchvision import models, transforms
+from torchvision import transforms
 
-from utils.common_config import get_test_dataset, get_vis_transform
-from utils.path import Path
 from utils.visualize import visualize_counterfactuals
 
 
