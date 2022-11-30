@@ -15,9 +15,14 @@ from torch import nn
 from lime import lime_image
 from skimage.segmentation import mark_boundaries
 
+RANDOM_SEED = 0     # set this to have consistent results over runs
 MODEL_PATH = "/home/rdaroya/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 device = "cpu"
+
+NUM_SAMPLES = 15    # number of samples to generate
+
+np.random.seed(RANDOM_SEED)
 
 def get_pil_transform(): 
     transf = transforms.Compose([
@@ -107,6 +112,7 @@ if __name__=="__main__":
             batch_predict, # classification function
             top_labels=5, 
             hide_color=0, 
+            random_seed=RANDOM_SEED,
             num_samples=1000) # number of images that will be sent to classification function
 
         temp, mask = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=False)
@@ -121,5 +127,6 @@ if __name__=="__main__":
         plt.imshow(img_boundry2)
         plt.savefig(f"../outputs/lime/cifar/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
         plt.close()
-        # break
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
+        if (i+1) == NUM_SAMPLES:
+            break

@@ -15,9 +15,13 @@ from torch import nn
 from lime import lime_image
 from skimage.segmentation import mark_boundaries
 
+RANDOM_SEED = 0
 MODEL_PATH = "/home/rdaroya/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
 device = "cpu"
+NUM_SAMPLES = 15    # number of samples to generate
+
+np.random.seed(RANDOM_SEED)
 
 def get_pil_transform(): 
     transf = transforms.Compose([
@@ -108,6 +112,7 @@ if __name__=="__main__":
             batch_predict, # classification function
             top_labels=5, 
             hide_color=0, 
+            random_seed=RANDOM_SEED,
             num_samples=1000) # number of images that will be sent to classification function
 
         temp, mask = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=False)
@@ -122,6 +127,6 @@ if __name__=="__main__":
         plt.imshow(img_boundry2)
         plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
         plt.close()
-        # break
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
-        # break
+        if (i+1) == NUM_SAMPLES:
+            break
