@@ -20,7 +20,7 @@ MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_ox
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
 device = "cpu"
 NUM_SAMPLES = 100    # number of samples to generate
-TO_APPEND_RESULTS = True    # set to True when there are previous results
+TO_APPEND_RESULTS = False    # set to True when there are previous results
 
 np.random.seed(RANDOM_SEED)
 
@@ -118,6 +118,19 @@ def compute_iou(mask, reversed_mask):
 
     return pos_iou, neg_iou
 
+def generate_affine_vals(num_imgs, im_size=224):
+    rot_vals_deg = np.random.randint(low=-80, high=80, size=num_imgs)
+
+    t_1 = np.zeros((num_imgs//2,2))    # half don't have translation
+    t_2 = np.random.randint(low=-0.1*im_size, high=0.1*im_size, size=(num_imgs-(num_imgs//2),2))
+    trans_vals = np.concatenate((t_1,t_2))
+
+    s_1 = np.ones(num_imgs//2)          # half don't have scaling
+    s_2 = np.random.rand(num_imgs-(num_imgs//2))+1  # generates n-dim array in range of [1,2)
+    scales = np.concatenate((s_1,s_2))
+
+    return rot_vals_deg, trans_vals, scales
+
 if __name__=="__main__":
 
     pill_transf = get_pil_transform()
@@ -144,6 +157,11 @@ if __name__=="__main__":
     test_dl = torch.utils.data.DataLoader(
         testset, batch_size=1, shuffle=False#, num_workers=2
     )
+    num_imgs = len(test_dl)
+    rot_vals_deg, trans_vals, scales = generate_affine_vals(num_imgs)
+    np.savetxt("lime_oxford_rot_vals_deg.txt", rot_vals_deg)
+    np.savetxt("lime_oxford_trans_vals.txt", trans_vals)
+    np.savetxt("lime_oxford_scales.txt", scales)
 
     model.eval()
     results = []
@@ -154,12 +172,11 @@ if __name__=="__main__":
     pos_ious, neg_ious = [], []
     for i, (inputs, targets) in enumerate(test_dl):
         is_rot_only = False
-        rot_val_deg = np.random.randint(low = -80, high=80) # generate random rotation values
-        # print(f"rot_val: {rot_val}")
+        rot_val_deg = rot_vals_deg[i]
         rot_val = rot_val_deg*np.pi/180.0
-        trans_val = 0
-        scale_val = 1
-        if (trans_val==0) and (scale_val==1) and (rot_val!=0):
+        trans_val = trans_vals[i]
+        scale_val = scales[i]
+        if (all(trans_val == np.array([0,0]))) and (scale_val==1) and (rot_val!=0):
             is_rot_only = True
 
         img = inputs.cpu().detach().numpy()
@@ -167,6 +184,10 @@ if __name__=="__main__":
         img = img.swapaxes(0,1)
         img = img.swapaxes(1,2)
         img_np = img.copy()
+        rrr_img = img_np.copy()     # red-tinted image
+        rrr_img[:,:,1] = 0
+        rrr_img[:,:,2] = 0
+        bgr_img = img_np[...,::-1].copy()   # bgr image
         ones_mask = np.ones_like(img)   # to be used for computing IoU later
 
         if not is_rot_only:
@@ -189,7 +210,9 @@ if __name__=="__main__":
             t_img = skimage.transform.rotate(img, rot_val_deg)
         img = Image.fromarray(np.uint8((img-np.min(img))*255/(np.max(img)-np.min(img)))).convert('RGB')
         t_img = Image.fromarray(np.uint8((t_img-np.min(t_img))*255/(np.max(t_img)-np.min(t_img)))).convert('RGB')
-
+        rrr_img = Image.fromarray(np.uint8((rrr_img-np.min(rrr_img))*255/(np.max(rrr_img)-np.min(rrr_img)))).convert('RGB')
+        bgr_img = Image.fromarray(np.uint8((bgr_img-np.min(bgr_img))*255/(np.max(bgr_img)-np.min(bgr_img)))).convert('RGB')
+        
         # predict on a single image
         test_pred = batch_predict([pill_transf(img)])
         pred_idx = test_pred.squeeze().argmax()
@@ -200,6 +223,16 @@ if __name__=="__main__":
         t_test_pred = batch_predict([pill_transf(t_img)])
         t_pred_idx = t_test_pred.squeeze().argmax()
         t_pred_class = idx2label[t_pred_idx]
+
+        # predict on red-tinted image
+        rrr_test_pred = batch_predict([pill_transf(rrr_img)])
+        rrr_pred_idx = rrr_test_pred.squeeze().argmax()
+        rrr_pred_class = idx2label[rrr_pred_idx]
+
+        # predict on bgr image
+        bgr_test_pred = batch_predict([pill_transf(bgr_img)])
+        bgr_pred_idx = bgr_test_pred.squeeze().argmax()
+        bgr_pred_class = idx2label[bgr_pred_idx]
 
         print("Getting explanation for original image")
         explainer = lime_image.LimeImageExplainer()
@@ -240,33 +273,83 @@ if __name__=="__main__":
         transformed_temp2, transformed_mask2 = transformed_explanation.get_image_and_mask(transformed_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         transformed_img_boundry2 = mark_boundaries(transformed_temp2/255.0, transformed_mask2)
         plt.imshow(transformed_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_t_shade.jpg")
+        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
         plt.close()
 
+
+        # Explain red-tinted image
+        print(f"Getting explanation for red-tinted image")
+        rrr_explainer = lime_image.LimeImageExplainer()
+        rrr_explanation = rrr_explainer.explain_instance(
+            np.array(pill_transf(rrr_img)), 
+            batch_predict, # classification function
+            top_labels=5, 
+            hide_color=0, 
+            random_seed=RANDOM_SEED,
+            num_samples=1000) # number of images that will be sent to classification function
+
+        rrr_temp1, rrr_mask1 = rrr_explanation.get_image_and_mask(rrr_explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=False)
+        rrr_img_boundry1 = mark_boundaries(rrr_temp1/255.0, rrr_mask1)
+
+        # Shade areas that contribute to top prediction
+        rrr_temp2, rrr_mask2 = rrr_explanation.get_image_and_mask(rrr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
+        rrr_img_boundry2 = mark_boundaries(rrr_temp2/255.0, rrr_mask2)
+        plt.imshow(rrr_img_boundry2)      
+        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
+        plt.close()
+
+
+        # Explain bgr image
+        print(f"Getting explanation for bgr image")
+        bgr_explainer = lime_image.LimeImageExplainer()
+        bgr_explanation = bgr_explainer.explain_instance(
+            np.array(pill_transf(bgr_img)), 
+            batch_predict, # classification function
+            top_labels=5, 
+            hide_color=0, 
+            random_seed=RANDOM_SEED,
+            num_samples=1000) # number of images that will be sent to classification function
+
+        bgr_temp1, bgr_mask1 = bgr_explanation.get_image_and_mask(bgr_explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=False)
+        bgr_img_boundry1 = mark_boundaries(bgr_temp1/255.0, bgr_mask1)
+
+        # Shade areas that contribute to top prediction
+        bgr_temp2, bgr_mask2 = bgr_explanation.get_image_and_mask(bgr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
+        bgr_img_boundry2 = mark_boundaries(bgr_temp2/255.0, bgr_mask2)
+        plt.imshow(bgr_img_boundry2)      
+        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
+        plt.close()
+
+
+
         # Compute iou between rotated images
-        # unrot_mask2 = get_reverse_rot_mask(transformed_mask2, rot_val)
-        # pos_iou, neg_iou = compute_iou(mask2, unrot_mask2)
         if not is_rot_only:
             untrans_mask, untrans_ones = get_reverse_affine_masks(transformed_mask2, t_ones_mask, rot_val, scale_val, trans_val)
             pos_iou, neg_iou = get_masked_iou(mask2, untrans_mask, untrans_ones)
         else:
             unrot_mask2 = get_reverse_rot_mask(transformed_mask2, rot_val_deg)
             pos_iou, neg_iou = compute_iou(mask2, unrot_mask2)
-        pos_ious.append(pos_iou)
-        neg_ious.append(neg_iou)
-        print(f"pos_iou: {pos_iou}, neg_iou: {neg_iou}")
+        # pos_ious.append(pos_iou)
+        # neg_ious.append(neg_iou)
+        print(f"t_pos_iou: {pos_iou}, t_neg_iou: {neg_iou}")
 
-        results.append([i, target_class, pred_class, t_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou])
+        #Compute iou of tinted and bgr images
+        rrr_pos_iou, rrr_neg_iou = compute_iou(mask2, rrr_mask2)
+        bgr_pos_iou, bgr_neg_iou = compute_iou(mask2, bgr_mask2)
+
+        # Log results
+        results.append([i, target_class, pred_class, t_pred_class, rrr_pred_class, bgr_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou, rrr_pos_iou, rrr_neg_iou, bgr_pos_iou, bgr_neg_iou])
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
+        
         if (i+1) == NUM_SAMPLES:
             break
         df = pd.DataFrame(results, columns=[
-            "test_idx", "target_class", "pred_class", "t_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou"
+            "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
         ])
         df.to_csv("lime_oxford_results.csv", index=False)
-    print(f"pos_ious: {pos_ious}")
-    print(f"neg_ious: {neg_ious}")
+    # print(f"pos_ious: {pos_ious}")
+    # print(f"neg_ious: {neg_ious}")
     df = pd.DataFrame(results, columns=[
-        "test_idx", "target_class", "pred_class", "t_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou"
+        "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
     ])
     df.to_csv("lime_oxford_results.csv", index=False)

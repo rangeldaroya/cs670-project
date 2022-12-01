@@ -3,7 +3,7 @@
 #SBATCH --mem=32G  # Requested Memory
 #SBATCH -p gpu  # Partition
 #SBATCH -G 1  # Number of GPUs
-#SBATCH -t 10:00:00  # Job time limit
+#SBATCH -t 24:00:00  # Job time limit
 #SBATCH -o slurm-lime-oxford-%j.out  # %j = job ID
 
 module load cuda/11.3.1
