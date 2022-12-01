@@ -31,14 +31,25 @@ normalize = transforms.Normalize(
    mean=[0.485, 0.456, 0.406],
    std=[0.229, 0.224, 0.225]
 )
-trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(),normalize])
+trans = transforms.Compose([
+    transforms.RandomResizedCrop(224), 
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    normalize
+])
+test_trans = transforms.Compose([
+    transforms.Resize(224), 
+    transforms.CenterCrop(224), 
+    transforms.ToTensor(),
+    normalize
+])
 
-trainset = Cub(train=True, transform=trans, return_image_only=True)
+trainset = Cub(train=True, transform=trans, return_image_only=False)
 train_dl = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True#, num_workers=2
+    trainset, batch_size=32, shuffle=True#, num_workers=8
     )
 
-testset = Cub(train=False, transform=trans, return_image_only=True)
+testset = Cub(train=False, transform=test_trans, return_image_only=False)
 test_dl = torch.utils.data.DataLoader(
     testset, batch_size=100, shuffle=False#, num_workers=2
     )
@@ -113,14 +124,11 @@ if __name__=="__main__":
 
     # Freeze the layers
     for param in model.parameters():
-        param.requires_grad = False
+        param.requires_grad = True
 
     # Change the last layer to cifar10 number of output classes, and then just finetune these layers
     num_feats = model.fc.in_features
-    model.fc = nn.Sequential(nn.Linear(num_feats, 1024),
-        nn.ReLU(),
-        nn.Dropout(0.1),
-        nn.Linear(1024, 200),   # 200 CUB categories
+    model.fc = nn.Sequential(nn.Linear(num_feats, 200) # 200 CUB categories
     )
     model = model.to(device)
 

@@ -198,6 +198,8 @@ class Cub(Dataset):
         image = self._loader(path)
         width, height = image.size
 
+        return self._transform(image), sample.target - 1
+
         # return image only
         if self._return_image_only:
             if self._transform is None:
@@ -209,7 +211,7 @@ class Cub(Dataset):
                         "image"
                     ]
                 else:
-                    return self._transform(image), sample.target - 1
+                    return self._transform(image)
 
         target = sample.target - 1
 
