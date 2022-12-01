@@ -13,13 +13,14 @@ from torch import nn
 from lime import lime_image
 from skimage.segmentation import mark_boundaries
 import skimage
+import pandas as pd
 
 RANDOM_SEED = 0     # set this to have consistent results over runs
-MODEL_PATH = "/home/rdaroya/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
+MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 device = "cpu"
 
-NUM_SAMPLES = 15    # number of samples to generate
+NUM_SAMPLES = 100    # number of samples to generate
 
 np.random.seed(RANDOM_SEED)
 
@@ -93,6 +94,31 @@ def get_masked_iou(mask, reversed_mask, untrans_ones):
 
     return pos_iou, neg_iou
 
+def get_reverse_rot_mask(rotated_mask, rot_val):
+
+    unrot_mask_pos = (rotated_mask>0)
+    unrot_mask_pos = skimage.transform.rotate(unrot_mask_pos, -rot_val, preserve_range=True, resize=False, clip=False, mode='constant', cval=0)
+    unrot_mask_neg = (rotated_mask<0)
+    unrot_mask_neg = skimage.transform.rotate(unrot_mask_neg, -rot_val, preserve_range=True, resize=False, clip=False, mode='constant', cval=0)
+
+    unrot_mask = unrot_mask_pos.astype(int) + unrot_mask_neg.astype(int)*(-1)
+
+    return unrot_mask
+
+def compute_iou(mask, reversed_mask):
+    pos_mask = (mask>0).astype(int)
+    pos_reversed_mask = (reversed_mask>0).astype(int)
+    union_pos = pos_mask + pos_reversed_mask
+
+    neg_mask = (mask<0).astype(int)
+    neg_reversed_mask = (reversed_mask<0).astype(int)
+    union_neg = neg_mask + neg_reversed_mask
+
+    pos_iou = np.sum(pos_mask&pos_reversed_mask)/(np.sum(union_pos>0) or 1e10)  # if sum is zero, make iou approach 0
+    neg_iou = (np.sum(neg_mask&neg_reversed_mask)/(np.sum(union_neg>0) or 1e10))
+
+    return pos_iou, neg_iou
+
 if __name__=="__main__":
 
     pill_transf = get_pil_transform()
@@ -121,13 +147,17 @@ if __name__=="__main__":
     )
 
     model.eval()
+    results = []
     pos_ious, neg_ious = [], []
     for i, (inputs, targets) in enumerate(test_dl):
+        is_rot_only = False
         rot_val_deg = np.random.randint(low = -80, high=80) # generate random rotation values
         # print(f"rot_val: {rot_val}")
         rot_val = rot_val_deg*np.pi/180.0
         trans_val = 0
         scale_val = 1
+        if (trans_val==0) and (scale_val==1) and (rot_val>0):
+            is_rot_only = True
 
         img = inputs.cpu().detach().numpy()
         img = img[0,:,:,:]
@@ -135,21 +165,25 @@ if __name__=="__main__":
         img = img.swapaxes(1,2)
         img_np = img.copy()
         ones_mask = np.ones_like(img)   # to be used for computing IoU later
-        tform = skimage.transform.AffineTransform(translation=trans_val, rotation=rot_val, scale=scale_val)
-        t_img = skimage.transform.warp(
-            img,
-            tform.inverse,
-            mode="constant",
-            cval=0,
-            preserve_range=True,
-        )
-        t_ones_mask = skimage.transform.warp(
-            ones_mask,
-            tform.inverse,
-            mode="constant",
-            cval=0,
-            preserve_range=True,
-        )
+
+        if not is_rot_only:
+            tform = skimage.transform.AffineTransform(translation=trans_val, rotation=rot_val, scale=scale_val)
+            t_img = skimage.transform.warp(
+                img,
+                tform.inverse,
+                mode="constant",
+                cval=0,
+                preserve_range=True,
+            )
+            t_ones_mask = skimage.transform.warp(
+                ones_mask,
+                tform.inverse,
+                mode="constant",
+                cval=0,
+                preserve_range=True,
+            )
+        else:
+            t_img = skimage.transform.rotate(img, rot_val_deg)
         img = Image.fromarray(np.uint8((img-np.min(img))*255/(np.max(img)-np.min(img)))).convert('RGB')
         t_img = Image.fromarray(np.uint8((t_img-np.min(t_img))*255/(np.max(t_img)-np.min(t_img)))).convert('RGB')
 
@@ -158,6 +192,11 @@ if __name__=="__main__":
         pred_idx = test_pred.squeeze().argmax()
         pred_class = idx2label[pred_idx]
         target_class = idx2label[targets]
+
+        # predict on transformed image
+        t_test_pred = batch_predict([pill_transf(t_img)])
+        t_pred_idx = t_test_pred.squeeze().argmax()
+        t_pred_class = idx2label[t_pred_idx]
 
         print("Getting explanation for original image")
         explainer = lime_image.LimeImageExplainer()
@@ -204,14 +243,27 @@ if __name__=="__main__":
         # Compute iou between rotated images
         # unrot_mask2 = get_reverse_rot_mask(transformed_mask2, rot_val)
         # pos_iou, neg_iou = compute_iou(mask2, unrot_mask2)
-        untrans_mask, untrans_ones = get_reverse_affine_masks(transformed_mask2, t_ones_mask, rot_val, scale_val, trans_val)
-        pos_iou, neg_iou = get_masked_iou(mask2, untrans_mask, untrans_ones)
+        if not is_rot_only:
+            untrans_mask, untrans_ones = get_reverse_affine_masks(transformed_mask2, t_ones_mask, rot_val, scale_val, trans_val)
+            pos_iou, neg_iou = get_masked_iou(mask2, untrans_mask, untrans_ones)
+        else:
+            unrot_mask2 = get_reverse_rot_mask(transformed_mask2, rot_val_deg)
+            pos_iou, neg_iou = compute_iou(mask2, unrot_mask2)
         pos_ious.append(pos_iou)
         neg_ious.append(neg_iou)
         print(f"pos_iou: {pos_iou}, neg_iou: {neg_iou}")
 
+        results.append([i, target_class, pred_class, t_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou])
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
         if (i+1) == NUM_SAMPLES:
             break
+        df = pd.DataFrame(results, columns=[
+            "test_idx", "target_class", "pred_class", "t_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou"
+        ])
+        df.to_csv("lime_cifar_results.csv", index=False)
     print(f"pos_ious: {pos_ious}")
     print(f"neg_ious: {neg_ious}")
+    df = pd.DataFrame(results, columns=[
+        "test_idx", "target_class", "pred_class", "t_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou"
+    ])
+    df.to_csv("lime_cifar_results.csv", index=False)

@@ -1,0 +1,2 @@
+test_idx,target_class,pred_class,t_pred_class,is_rot_only,rot_val_deg,trans_val,scale_val,pos_iou,neg_iou
+0,pink primrose,wild pansy,balloon flower,False,-33,0,1,0.2794893617021277,0.000911854103343465
