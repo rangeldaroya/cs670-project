@@ -9,6 +9,7 @@ from typing import Any, Callable, Optional, Tuple
 
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive
+import torchvision
 
 
 class CIFAR10(VisionDataset):
@@ -56,12 +57,20 @@ class CIFAR10(VisionDataset):
             transform: Optional[Callable] = None,
             target_transform: Optional[Callable] = None,
             download: bool = False,
+
+            rot_vals_deg=None,
+            trans_vals=None,
+            scales=None,
     ) -> None:
 
         super(CIFAR10, self).__init__(root, transform=transform,
                                       target_transform=target_transform)
 
         self.train = train  # training set or test set
+
+        self.rot_vals_deg = rot_vals_deg
+        self.trans_vals = trans_vals
+        self.scales = scales
 
         if download:
             self.download()
@@ -88,6 +97,15 @@ class CIFAR10(VisionDataset):
                     self.targets.extend(entry['labels'])
                 else:
                     self.targets.extend(entry['fine_labels'])
+                self.len_orig = len(self.data)
+                if (not self.train) and (rot_vals_deg is not None):  # using test set
+                    # Add same data again
+                    self.data.append(entry['data'])
+                    if 'labels' in entry:
+                        self.targets.extend(entry['labels'])
+                    else:
+                        self.targets.extend(entry['fine_labels'])
+
 
         self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
         self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
@@ -117,6 +135,17 @@ class CIFAR10(VisionDataset):
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
         img = Image.fromarray(img)
+
+        if (index > (self.len_orig-1)) and (self.rot_vals_deg is not None):
+            # Add data augmentations with random rotations/scale/trans defined
+            # print(f"self.rot_vals_deg[index]: {self.rot_vals_deg[index]}, self.trans_vals[index]: {list(self.trans_vals[index])}, self.scales[index]: {self.scales[index]}")
+            img = torchvision.transforms.functional.affine(
+                img,
+                angle=self.rot_vals_deg[index],
+                translate=list(self.trans_vals[index]),
+                scale=self.scales[index],
+                shear=0,
+            )
 
         if self.transform is not None:
             img = self.transform(img)

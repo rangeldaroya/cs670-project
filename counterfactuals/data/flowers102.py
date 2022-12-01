@@ -8,7 +8,7 @@ import PIL.Image
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive, download_url, verify_str_arg
 from torchvision.datasets import VisionDataset
 
-
+import torchvision
 
 class Flowers102(VisionDataset):
     """`Oxford 102 Flower <https://www.robots.ox.ac.uk/~vgg/data/flowers/102/>`_ Dataset.
@@ -50,11 +50,18 @@ class Flowers102(VisionDataset):
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
         download: bool = False,
+        rot_vals_deg=None,
+        trans_vals=None,
+        scales=None,
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
         self._split = verify_str_arg(split, "split", ("train", "val", "test"))
         self._base_folder = Path(self.root) / "flowers-102"
         self._images_folder = self._base_folder / "jpg"
+        
+        self.rot_vals_deg = rot_vals_deg
+        self.trans_vals = trans_vals
+        self.scales = scales
 
         if download:
             self.download()
@@ -76,6 +83,14 @@ class Flowers102(VisionDataset):
             self._labels.append(image_id_to_label[image_id])
             self._image_files.append(self._images_folder / f"image_{image_id:05d}.jpg")
 
+        self.len_orig = len(self._image_files)  # number of orig images
+
+        if self.rot_vals_deg is not None:
+            for image_id in image_ids:
+                self._labels.append(image_id_to_label[image_id])
+                self._image_files.append(self._images_folder / f"image_{image_id:05d}.jpg")
+            
+
     def __len__(self) -> int:
         return len(self._image_files)
 
@@ -83,6 +98,15 @@ class Flowers102(VisionDataset):
     def __getitem__(self, idx) -> Tuple[Any, Any]:
         image_file, label = self._image_files[idx], self._labels[idx]
         image = PIL.Image.open(image_file).convert("RGB")
+        if (idx > (self.len_orig-1)) and (self.rot_vals_deg is not None):
+            # Add data augmentations with random rotations/scale/trans defined
+            image = torchvision.transforms.functional.affine(
+                image,
+                angle=self.rot_vals_deg[idx],
+                translate=list(self.trans_vals[idx]),
+                scale=self.scales[idx],
+                shear=0,
+            )
 
         if self.transform:
             image = self.transform(image)

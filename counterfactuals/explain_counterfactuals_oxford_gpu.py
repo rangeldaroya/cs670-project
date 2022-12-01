@@ -28,6 +28,8 @@ parser.add_argument("--config_path", type=str, required=True)
 TEST_BATCH_SIZE = 1
 MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 NUM_CLASSES = 102   # 102 oxford flowers
+RANDOM_SEED = 0
+NUM_IMGS = 6149    # num of images in test set (orig number)
 
 
 def get_model_feats_logits(model, inp):
@@ -67,18 +69,35 @@ def get_dataset_targets(dataset, distractor_class):
         .tolist()
     )
 
+def generate_affine_vals(num_imgs=NUM_IMGS, im_size=224):
+    r_1 = np.zeros(num_imgs)
+    r_2 = np.random.randint(low=-180, high=180, size=num_imgs)
+    rot_vals_deg = np.concatenate((r_1,r_2))
+
+    t_1 = np.zeros((num_imgs+(num_imgs//2),2))    # half don't have translation
+    t_2 = np.random.randint(low=-0.1*im_size, high=0.1*im_size, size=(num_imgs-(num_imgs//2),2))
+    trans_vals = np.concatenate((t_1,t_2))
+
+    s_1 = np.ones(num_imgs+(num_imgs//2))
+    s_2 = np.random.rand(num_imgs-(num_imgs//2))+1  # generates n-dim array in range of [1,2)
+    scales = np.concatenate((s_1,s_2))
+
+    return rot_vals_deg, trans_vals, scales
+
 def main():
+    np.random.seed(RANDOM_SEED)
     args = parser.parse_args()
 
     # parse args
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
 
-    experiment_name = os.path.basename(args.config_path).split(".")[0]
-    dirpath = os.path.join(Path.output_root_dir(), experiment_name)
-    os.makedirs(dirpath, exist_ok=True)
+    # experiment_name = os.path.basename(args.config_path).split(".")[0]
+    # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
+    # os.makedirs(dirpath, exist_ok=True)
 
     # create dataset
+    rot_vals_deg, trans_vals, scales = generate_affine_vals()
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
@@ -86,10 +105,16 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     dataset = Flowers102(
-        root='./data', split='test', download=True, transform=trans)
+        root='./data', split='test', download=True, transform=trans,
+        rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
+    )
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
     )
+
+    np.savetxt("scve_oxford_rot_vals_deg.txt", rot_vals_deg)
+    np.savetxt("scve_oxford_trans_vals.txt", trans_vals)
+    np.savetxt("scve_oxford_scales.txt", scales)
 
     # device
     assert torch.cuda.is_available()
@@ -136,7 +161,9 @@ def main():
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
         aux_dataset = Flowers102(
-            root='./data', split='test', download=True, transform=trans)
+            root='./data', split='test', download=True, transform=trans,
+            rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
+        )
         aux_loader = torch.utils.data.DataLoader(
             aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
         )
@@ -228,10 +255,13 @@ def main():
             "query_target": query_pred,
             "distractor_target": distractor_target,
             "edits": list_of_edits,
+            "rot_vals_deg": rot_vals_deg,
+            "trans_vals": trans_vals,
+            "scales": scales,
         }
 
     # save result
-    np.save(os.path.join(dirpath, "counterfactuals.npy"), counterfactuals)
+    np.save("oxford_counterfactuals.npy", counterfactuals)
 
     # evaluation
     print("Generated {} counterfactual explanations".format(len(counterfactuals)))
