@@ -23,7 +23,7 @@ def main():
 
     # experiment_name = os.path.basename(args.config_path).split(".")[0]
     # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
-    dirpath = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/output/counterfactuals_ours_oxford_res50"
+    # dirpath = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/output/counterfactuals_ours_oxford_res50"
 
     # dataset = get_test_dataset(get_vis_transform(), return_image_only=True)
 
@@ -35,11 +35,15 @@ def main():
     dataset = torchvision.datasets.Flowers102(
         root='./data', split='test', download=True, transform=trans)
 
+    cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/oxford_counterfactuals_no_trans.npy"
     counterfactuals = np.load(
-        os.path.join(dirpath, "counterfactuals.npy"), allow_pickle=True
+        cp_path, allow_pickle=True
     ).item()
 
-    for idx in np.random.choice(list(counterfactuals.keys()), 5):
+    cf_keys = list(counterfactuals.keys())
+    # for idx in np.random.choice(list(counterfactuals.keys()), 5):
+    for ctr, idx in enumerate(cf_keys):
+        print(f"Processing {ctr+1}/{len(cf_keys)}")
         cf = counterfactuals[idx]
 
         visualize_counterfactuals(
