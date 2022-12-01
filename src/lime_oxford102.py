@@ -12,6 +12,7 @@ from torch import nn
 
 from lime import lime_image
 from skimage.segmentation import mark_boundaries
+import skimage
 
 RANDOM_SEED = 0
 MODEL_PATH = "/home/rdaroya/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
@@ -51,7 +52,44 @@ def batch_predict(images):
     logits = model(batch)
     probs = F.softmax(logits, dim=1)
     return probs.detach().cpu().numpy()
+def get_reverse_affine_masks(rotated_mask, rotated_ones_mask, rot_val, scale_val, trans_val):
+    # Reverse affine transform
+    r_tform = skimage.transform.AffineTransform(
+        translation=-1*trans_val,
+        rotation=-1*rot_val,
+        scale=1/scale_val,
+    )
+    r_t_mask = skimage.transform.warp(
+        rotated_mask,
+        r_tform.inverse,
+        mode="constant",
+        cval=0,
+        preserve_range=True,
+    )
+    r_t_ones_mask = skimage.transform.warp(
+        rotated_ones_mask,
+        r_tform.inverse,
+        mode="constant",
+        cval=0,
+        preserve_range=True,
+    )
+    return r_t_mask, r_t_ones_mask
 
+def get_masked_iou(mask, reversed_mask, untrans_ones):
+    ones_mask = (untrans_ones>0).astype(int)[:,:,0]
+    
+    pos_mask = (mask>0).astype(int)*ones_mask
+    pos_reversed_mask = (reversed_mask>0).astype(int)*ones_mask
+    union_pos = pos_mask + pos_reversed_mask
+
+    neg_mask = (mask<0).astype(int)*ones_mask
+    neg_reversed_mask = (reversed_mask<0).astype(int)*ones_mask
+    union_neg = neg_mask + neg_reversed_mask
+
+    pos_iou = np.sum(pos_mask&pos_reversed_mask)/(np.sum(union_pos>0) or 1e10)  # if sum is zero, make iou approach 0
+    neg_iou = (np.sum(neg_mask&neg_reversed_mask)/(np.sum(union_neg>0) or 1e10))
+
+    return pos_iou, neg_iou
 
 if __name__=="__main__":
 
@@ -80,7 +118,8 @@ if __name__=="__main__":
         testset, batch_size=1, shuffle=False#, num_workers=2
     )
 
-
+    model.eval()
+    pos_ious, neg_ious = [], []
     for i, (inputs, targets) in enumerate(test_dl):
         # print(inputs, inputs.shape)
         # print(targets)
@@ -128,3 +167,5 @@ if __name__=="__main__":
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
         if (i+1) == NUM_SAMPLES:
             break
+    print(f"pos_ious: {pos_ious}")
+    print(f"neg_ious: {neg_ious}")
