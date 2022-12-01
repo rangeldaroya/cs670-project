@@ -21,6 +21,7 @@ from explainer.utils import get_query_distractor_pairs, process_dataset
 from tqdm import tqdm
 
 from utils.path import Path
+from data.flowers102 import Flowers102
 
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
@@ -84,7 +85,7 @@ def main():
     )
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
-    dataset = torchvision.datasets.Flowers102(
+    dataset = Flowers102(
         root='./data', split='test', download=True, transform=trans)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
@@ -134,7 +135,7 @@ def main():
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
-        aux_dataset = torchvision.datasets.Flowers102(
+        aux_dataset = Flowers102(
             root='./data', split='test', download=True, transform=trans)
         aux_loader = torch.utils.data.DataLoader(
             aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2

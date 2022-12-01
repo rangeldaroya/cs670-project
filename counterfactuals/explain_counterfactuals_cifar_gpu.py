@@ -21,6 +21,7 @@ from explainer.utils import get_query_distractor_pairs, process_dataset
 from tqdm import tqdm
 
 from utils.path import Path
+from data.cifar import CIFAR10
 
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
@@ -83,7 +84,7 @@ def main():
         std=[0.229, 0.224, 0.225]
     )
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
-    dataset = torchvision.datasets.CIFAR10(
+    dataset = CIFAR10(
         root='./data', train=False, download=True, transform=trans)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
@@ -132,7 +133,7 @@ def main():
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
-        aux_dataset = torchvision.datasets.CIFAR10(
+        aux_dataset = CIFAR10(
             root='./data', train=False, download=True, transform=trans)
         aux_loader = torch.utils.data.DataLoader(
             aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
@@ -225,6 +226,10 @@ def main():
             "query_target": query_pred,
             "distractor_target": distractor_target,
             "edits": list_of_edits,
+            # "is_rot_onlys": is_rot_onlys,
+            # "rot_vals_deg": rot_vals_deg,
+            # "trans_vals": trans_vals,
+            # "scales": scales,
         }
 
     # save result
