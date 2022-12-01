@@ -156,7 +156,7 @@ if __name__=="__main__":
         rot_val = rot_val_deg*np.pi/180.0
         trans_val = 0
         scale_val = 1
-        if (trans_val==0) and (scale_val==1) and (rot_val>0):
+        if (trans_val==0) and (scale_val==1) and (rot_val!=0):
             is_rot_only = True
 
         img = inputs.cpu().detach().numpy()
