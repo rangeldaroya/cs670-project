@@ -16,7 +16,7 @@ class Path:
     @staticmethod
     def db_root_dir(db_name):
         if db_name == "CUB":
-            return "/home/aaronsun_umass_edu/cs670-project/data/CUB_200_2011"    # folder of extracted dataset
+            return "./data/CUB_200_2011"    # folder of extracted dataset
 
         else:
             raise NotImplementedError
