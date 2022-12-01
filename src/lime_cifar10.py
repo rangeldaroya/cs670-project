@@ -19,6 +19,7 @@ RANDOM_SEED = 0     # set this to have consistent results over runs
 MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 device = "cpu"
+TO_APPEND_RESULTS = True   # set to True when there are previous results
 
 NUM_SAMPLES = 100    # number of samples to generate
 
@@ -148,6 +149,10 @@ if __name__=="__main__":
 
     model.eval()
     results = []
+    # Load previous results to append to
+    if TO_APPEND_RESULTS:
+        prev_results = pd.read_csv("lime_cifar_results.csv")
+        results = prev_results.values.tolist()
     pos_ious, neg_ious = [], []
     for i, (inputs, targets) in enumerate(test_dl):
         is_rot_only = False
