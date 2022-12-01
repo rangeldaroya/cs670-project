@@ -61,7 +61,7 @@ def get_classifier_head(model):
 
 def get_dataset_targets(dataset, distractor_class):
     return (
-        np.argwhere(np.array(dataset._labels) == distractor_class + 1)
+        np.argwhere(np.array(dataset._labels) == distractor_class)
         .reshape(-1)
         .tolist()
     )
