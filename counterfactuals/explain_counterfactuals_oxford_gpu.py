@@ -28,6 +28,7 @@ TEST_BATCH_SIZE = 1
 MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 NUM_CLASSES = 102   # 102 oxford flowers
 
+
 def get_model_feats_logits(model, inp):
     def features(x):
         x = model.conv1(x)
@@ -107,7 +108,7 @@ def main():
 
     # process dataset
     print("Pre-compute classifier predictions")
-    result = process_dataset(model, dataloader, device, get_model_feats_logits)
+    result = process_dataset(model, dataloader, device, get_model_feats_logits, num_classes=NUM_CLASSES)
     features = result["features"]
     preds = result["preds"].numpy()
     targets = result["targets"].numpy()

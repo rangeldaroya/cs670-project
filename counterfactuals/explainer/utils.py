@@ -62,13 +62,13 @@ def get_query_distractor_pairs(
 
 
 @torch.no_grad()
-def process_dataset(model, dataloader, device, get_model_feats_logits):
+def process_dataset(model, dataloader, device, get_model_feats_logits, num_classes):
     """
     Process a dataset using a pre-trained classification model.
     We return the spatial feature representations, the predictions,
     the targets, top-1 accuracy and a confusion matrix as a dictionary.
     """
-    top1 = torchmetrics.Accuracy(top_k=1)
+    top1 = torchmetrics.Accuracy(top_k=1, task="multiclass", num_classes=num_classes)
 
     top1.to(device)
     model.to(device)
