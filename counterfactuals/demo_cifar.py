@@ -85,6 +85,30 @@ def get_inverse_affine_matrix(
     m = np.append(m,[[0,0,1]],axis=0)
     return m
 
+
+def compute_iou(w,h, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr):
+    mask = np.zeros((w, h))
+    r_t_mask = mask.copy()
+    orig_mask = mask.copy()
+
+    for ul,lr in zip(orig_edits_ul, orig_edits_lr):
+        if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
+            continue
+        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
+        orig_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
+
+    for ul,lr in zip(r_t_edits_ul, r_t_edits_lr):
+        ul, lr = ul.astype(int), lr.astype(int)
+        if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
+            continue
+        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
+        r_t_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
+
+    uni = (orig_mask + r_t_mask)
+    inter = (orig_mask.astype(bool) & r_t_mask.astype(bool)).astype(int)
+    iou = np.sum(inter)/np.sum(uni)
+    return iou
+
 def main():
     rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_rot_vals_deg.txt")
     trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_trans_vals.txt")
@@ -154,7 +178,8 @@ def main():
                 orig_edits_lr.append([x+width_cell, y+height_cell])
             orig_edits_ul = np.array(orig_edits_ul)
             orig_edits_lr = np.array(orig_edits_lr)
-
+            # print(f"orig_edits_ul: {orig_edits_ul}, {orig_edits_ul.shape}")
+            # print(f"orig_edits_lr: {orig_edits_lr}, {orig_edits_lr.shape}")
 
             # t_edits = t_cf["edits"]         # edits of transformed image
             t_edits_ul = []     # coordinates for upper left corner of edit box
@@ -177,33 +202,37 @@ def main():
             rot_val, trans_val, scale = t_cf['rot_vals_deg'],t_cf['trans_vals'],t_cf['scales']
             reverse_trans = get_inverse_affine_matrix(center=(width//2, height//2), angle=rot_val, scale=scale, shear=[0,0], translate=trans_val)
             
-            print(f"reverse_trans: {reverse_trans}, t_edits_ul[0]: {t_edits_ul[0]}")
+            # print(f"reverse_trans: {reverse_trans}, t_edits_ul[0]: {t_edits_ul[0]}")
             r_t_edits_ul = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_ul])
             r_t_edits_ul = r_t_edits_ul[:,:2,0]
             r_t_edits_lr = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_lr])
             r_t_edits_lr = r_t_edits_lr[:,:2,0]
-            print(f"r_t_edits_ul: {r_t_edits_ul}, {r_t_edits_ul.shape}")
+            # print(f"r_t_edits_ul: {r_t_edits_ul}")
+            # print(f"r_t_edits_lr: {r_t_edits_lr}")
 
-            print(f"orig_edits_ul: {orig_edits_ul}, t_edits_ul: {t_edits_ul}, rot_val: {rot_val}, trans_val: {trans_val}, scale: {scale}")
+            # Compute IoU
+            iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
+            print(f"iou: {iou}")
 
-            visualize_counterfactuals(
-                edits=orig_cf["edits"],
-                query_index=orig_cf["query_index"],
-                distractor_index=orig_cf["distractor_index"],
-                dataset=dataset,
-                n_pix=7,
-                fname=f"output/counterfactuals_cifar_demo/example_{idx}_orig1.png",
-                idx2label=idx2label,
-            )
-            visualize_counterfactuals(
-                edits=t_cf["edits"],
-                query_index=t_cf["query_index"],
-                distractor_index=t_cf["distractor_index"],
-                dataset=dataset,
-                n_pix=7,
-                fname=f"output/counterfactuals_cifar_demo/example_{idx}_t1.png",
-                idx2label=idx2label,
-            )
+            # Make visualizations
+            # visualize_counterfactuals(
+            #     edits=orig_cf["edits"],
+            #     query_index=orig_cf["query_index"],
+            #     distractor_index=orig_cf["distractor_index"],
+            #     dataset=dataset,
+            #     n_pix=7,
+            #     fname=f"output/counterfactuals_cifar_demo/example_{idx}_orig1.png",
+            #     idx2label=idx2label,
+            # )
+            # visualize_counterfactuals(
+            #     edits=t_cf["edits"],
+            #     query_index=t_cf["query_index"],
+            #     distractor_index=t_cf["distractor_index"],
+            #     dataset=dataset,
+            #     n_pix=7,
+            #     fname=f"output/counterfactuals_cifar_demo/example_{idx}_t1.png",
+            #     idx2label=idx2label,
+            # )
             # break
     print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
