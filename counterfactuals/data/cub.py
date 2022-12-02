@@ -85,8 +85,6 @@ class Cub(Dataset):
         data = images.merge(image_class_labels, on="img_id")
         self._data = data.merge(train_eval_split, on="img_id")
 
-        self.targets = image_class_labels
-
         # select split
         if self._train:
             self._data = self._data[self._data.is_training_img == 1]
@@ -95,11 +93,8 @@ class Cub(Dataset):
 
         if (not self._train) and (self.rot_vals_deg is not None):  # using test set
             self.len_orig = len(self._data)
-            self._data = self._data.append(self._data)
-            self.targets = self.targets.append(self.targets)
 
-        print(self._data.shape)
-        print(self.targets.shape)
+        self.targets = self._data["target"]
 
     def _check_dataset_folder(self):
         try:
@@ -123,10 +118,10 @@ class Cub(Dataset):
         return self._parts_name_index
 
     def __len__(self):
-        return len(self._data)
+        return len(self._data) * 2
 
     def __getitem__(self, idx):
-        sample = self._data.iloc[idx]
+        sample = self._data.iloc[idx % self.len_orig]
         path = self._dataset_folder.joinpath("images", sample.filepath)
 
         img = self._loader(path)
