@@ -15,5 +15,16 @@
         - Local: `python src/train_resnet_cifar10.py`
         - Unity: `sbatch script_cifar.sh`
 5. To run scripts for explainability frameworks:
-    - Lime: Create directories: `output/lime/cifar`, `output/lime/oxford`, `output/lime/cub`
-    - Semantic CVE: Create directories:  `output/semantic-cve/cifar`, `output/semantic-cve/oxford`, `output/semantic-cve/cub`
+    - Lime: 
+        -Create directories: `output/lime/cifar`, `output/lime/oxford`, `output/lime/cub`
+    - Semantic CVE: 
+        - Create directories:  `output/semantic-cve/cifar`, `output/semantic-cve/oxford`, `output/semantic-cve/cub`
+        - Install the following:
+            - `conda install yaml`
+            - `pip install pytorch-lightning`
+            - `pip install -U albumentations`
+            - `pip install pandas`
+        - Run the code with one of the ff: 
+            - `python explain_counterfactuals.py --config_path configs/counterfactuals/counterfactuals_ours_cub_res50.yaml`
+            - `python explain_counterfactuals_cifar_gpu.py --config_path configs/counterfactuals/counterfactuals_ours_cifar_res50.yaml`
+            - `python explain_counterfactuals_oxford_gpu.py --config_path configs/counterfactuals/counterfactuals_ours_oxford_res50.yaml`

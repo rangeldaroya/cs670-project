@@ -1,3 +1,16 @@
 data/*
 slurm-*
 *.pth
+
+counterfactuals/output/*
+counterfactuals/utils/__pycache__/*
+counterfactuals/model/__pycache__/*
+counterfactuals/data/__pycache__/*
+counterfactuals/explainer/__pycache__/*
+counterfactuals/data/cifar-10-batches-py/*
+counterfactuals/data/cifar-10-python.tar.gz
+counterfactuals/data/flowers-102/*
+src/data/*
+src/models/*
+outputs/*
+*.csv
