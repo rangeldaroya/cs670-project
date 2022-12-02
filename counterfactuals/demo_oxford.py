@@ -21,8 +21,6 @@ from data.flowers102 import Flowers102
 NUM_IMGS = 6149    # num of images in test set (orig number)
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
-# parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
-# parser.add_argument("--config_path", type=str, required=True)
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -95,14 +93,12 @@ def compute_iou(w,h, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr):
     for ul,lr in zip(orig_edits_ul, orig_edits_lr):
         if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
             continue
-        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
         orig_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
 
     for ul,lr in zip(r_t_edits_ul, r_t_edits_lr):
         ul, lr = ul.astype(int), lr.astype(int)
         if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
             continue
-        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
         r_t_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
 
     uni = (orig_mask + r_t_mask)
@@ -114,13 +110,6 @@ def main():
     rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_rot_vals_deg.txt")
     trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_trans_vals.txt")
     scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_scales.txt")
-    # args = parser.parse_args()
-
-    # experiment_name = os.path.basename(args.config_path).split(".")[0]
-    # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
-    # dirpath = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/output/counterfactuals_ours_oxford_res50"
-
-    # dataset = get_test_dataset(get_vis_transform(), return_image_only=True)
 
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
@@ -132,7 +121,6 @@ def main():
         rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
     )
 
-    # cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/oxford_counterfactuals_no_trans.npy"
     cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/oxford_counterfactuals.npy"
     counterfactuals = np.load(
         cp_path, allow_pickle=True
@@ -149,11 +137,7 @@ def main():
     height_cell = height // n_pix
 
     scve_results = []
-    # for idx in np.random.choice(list(counterfactuals.keys()), 5):
     for ctr, idx in enumerate(cf_keys):
-        # logger.debug(f"Processing {ctr+1}/{len(cf_keys)}")
-        cf = counterfactuals[idx]
-        # logger.debug(f"cf: {cf}")
         if (idx+NUM_IMGS) in cf_keys:
             logger.debug(f"idx={idx} has a pair")
             num_imgs_w_pairs += 1
@@ -207,7 +191,7 @@ def main():
 
             # Compute IoU
             t_iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
-            print(f"t_iou: {t_iou}")
+            logger.debug(f"t_iou: {t_iou}")
 
             # Log results
             label = dataset.__getitem__(orig_cf["query_index"])[1]

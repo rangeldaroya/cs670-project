@@ -21,8 +21,6 @@ from data.cifar import CIFAR10
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-# parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
-# parser.add_argument("--config_path", type=str, required=True)
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -95,14 +93,12 @@ def compute_iou(w,h, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr):
     for ul,lr in zip(orig_edits_ul, orig_edits_lr):
         if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
             continue
-        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
         orig_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
 
     for ul,lr in zip(r_t_edits_ul, r_t_edits_lr):
         ul, lr = ul.astype(int), lr.astype(int)
         if ul[1]<0 or ul[0]<0 or lr[1]<0 or lr[0]<0:
             continue
-        # print(f"{ul[1]}: {lr[1]+1}, {ul[0]}: {lr[0]+1}")
         r_t_mask[ul[1]: lr[1]+1, ul[0]: lr[0]+1]=1
 
     uni = (orig_mask + r_t_mask)
@@ -114,7 +110,6 @@ def main():
     rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_rot_vals_deg.txt")
     trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_trans_vals.txt")
     scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_scales.txt")
-    # args = parser.parse_args()
 
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
@@ -141,11 +136,7 @@ def main():
     height_cell = height // n_pix
 
     scve_results = []
-    # for idx in np.random.choice(list(counterfactuals.keys()), 5):
     for ctr, idx in enumerate(cf_keys):
-        # logger.debug(f"Processing {ctr+1}/{len(cf_keys)}")
-        cf = counterfactuals[idx]
-        # logger.debug(f"cf: {cf}")
         if (idx+NUM_IMGS) in cf_keys:
             logger.debug(f"idx={idx} has a pair")
             num_imgs_w_pairs += 1
@@ -199,7 +190,7 @@ def main():
 
             # Compute IoU
             t_iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
-            print(f"t_iou: {t_iou}")
+            logger.debug(f"t_iou: {t_iou}")
 
             # Log results
             label = dataset.__getitem__(orig_cf["query_index"])[1]
