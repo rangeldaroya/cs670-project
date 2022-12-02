@@ -13,12 +13,13 @@ from loguru import logger
 import skimage
 from typing import List
 import math
-# from PIL import Image
+import pandas as pd
 
 from utils.visualize import visualize_counterfactuals
 from data.cifar import CIFAR10
 
 NUM_IMGS = 10000
+TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 # parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
 # parser.add_argument("--config_path", type=str, required=True)
@@ -115,12 +116,6 @@ def main():
     scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_scales.txt")
     # args = parser.parse_args()
 
-    # experiment_name = os.path.basename(args.config_path).split(".")[0]
-    # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
-    # dirpath = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/output/counterfactuals_ours_cifar_res50"
-
-    # dataset = get_test_dataset(get_vis_transform(), return_image_only=True)
-
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
@@ -131,9 +126,6 @@ def main():
         rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
     )
 
-    # counterfactuals = np.load(
-    #     os.path.join(dirpath, "counterfactuals.npy"), allow_pickle=True
-    # ).item()
     cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/cifar_counterfactuals.npy"
     counterfactuals = np.load(
         cp_path, allow_pickle=True
@@ -148,6 +140,7 @@ def main():
     width_cell = width // n_pix
     height_cell = height // n_pix
 
+    scve_results = []
     # for idx in np.random.choice(list(counterfactuals.keys()), 5):
     for ctr, idx in enumerate(cf_keys):
         # logger.debug(f"Processing {ctr+1}/{len(cf_keys)}")
@@ -156,15 +149,13 @@ def main():
         if (idx+NUM_IMGS) in cf_keys:
             logger.debug(f"idx={idx} has a pair")
             num_imgs_w_pairs += 1
-            # if num_imgs_w_pairs<70:
-            #     continue
 
             orig_idx = idx
             t_idx = idx + NUM_IMGS  # idx of transformed img
             orig_cf = counterfactuals[orig_idx]
             t_cf = counterfactuals[t_idx]
 
-            # orig_edits_ul = orig_cf["edits"]   # edits of original image
+            # Get coordinates of edits of the original untransformed image
             orig_edits_ul = []     # coordinates for upper left corner of edit box
             orig_edits_lr = []     # coordinates for lower right corner of edit box
             for o in orig_cf["edits"]:
@@ -178,10 +169,8 @@ def main():
                 orig_edits_lr.append([x+width_cell, y+height_cell])
             orig_edits_ul = np.array(orig_edits_ul)
             orig_edits_lr = np.array(orig_edits_lr)
-            # print(f"orig_edits_ul: {orig_edits_ul}, {orig_edits_ul.shape}")
-            # print(f"orig_edits_lr: {orig_edits_lr}, {orig_edits_lr.shape}")
 
-            # t_edits = t_cf["edits"]         # edits of transformed image
+            # Get coordinates of edits of the transformed image
             t_edits_ul = []     # coordinates for upper left corner of edit box
             t_edits_lr = []     # coordinates for lower right corner of edit box
             for o in t_cf["edits"]:
@@ -207,33 +196,44 @@ def main():
             r_t_edits_ul = r_t_edits_ul[:,:2,0]
             r_t_edits_lr = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_lr])
             r_t_edits_lr = r_t_edits_lr[:,:2,0]
-            # print(f"r_t_edits_ul: {r_t_edits_ul}")
-            # print(f"r_t_edits_lr: {r_t_edits_lr}")
 
             # Compute IoU
-            iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
-            print(f"iou: {iou}")
+            t_iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
+            print(f"t_iou: {t_iou}")
+
+            # Log results
+            label = dataset.__getitem__(orig_cf["query_index"])[1]
+            scve_results.append([idx, label, rot_val, trans_val, scale, t_iou])
+            df = pd.DataFrame(scve_results, columns=[
+                "test_idx", "label", "rot_val", "trans_val", "scale", "t_iou"
+            ])
+            df.to_csv("scve_cifar_results.csv", index=False)
 
             # Make visualizations
-            # visualize_counterfactuals(
-            #     edits=orig_cf["edits"],
-            #     query_index=orig_cf["query_index"],
-            #     distractor_index=orig_cf["distractor_index"],
-            #     dataset=dataset,
-            #     n_pix=7,
-            #     fname=f"output/counterfactuals_cifar_demo/example_{idx}_orig1.png",
-            #     idx2label=idx2label,
-            # )
-            # visualize_counterfactuals(
-            #     edits=t_cf["edits"],
-            #     query_index=t_cf["query_index"],
-            #     distractor_index=t_cf["distractor_index"],
-            #     dataset=dataset,
-            #     n_pix=7,
-            #     fname=f"output/counterfactuals_cifar_demo/example_{idx}_t1.png",
-            #     idx2label=idx2label,
-            # )
-            # break
+            if TO_GENERATE_IMGS:
+                visualize_counterfactuals(
+                    edits=orig_cf["edits"],
+                    query_index=orig_cf["query_index"],
+                    distractor_index=orig_cf["distractor_index"],
+                    dataset=dataset,
+                    n_pix=7,
+                    fname=f"output/counterfactuals_cifar_demo/example_{idx}_orig.png",
+                    idx2label=idx2label,
+                )
+                visualize_counterfactuals(
+                    edits=t_cf["edits"],
+                    query_index=t_cf["query_index"],
+                    distractor_index=t_cf["distractor_index"],
+                    dataset=dataset,
+                    n_pix=7,
+                    fname=f"output/counterfactuals_cifar_demo/example_{idx}_t.png",
+                    idx2label=idx2label,
+                )
+                
+    df = pd.DataFrame(scve_results, columns=[
+        "test_idx", "label", "rot_val", "trans_val", "scale", "t_iou"
+    ])
+    df.to_csv("scve_cifar_results.csv", index=False)
     print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
 if __name__ == "__main__":
