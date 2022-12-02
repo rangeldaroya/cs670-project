@@ -18,6 +18,7 @@ import pandas as pd
 from utils.visualize import visualize_counterfactuals
 from data.cifar import CIFAR10
 
+TRANSFORM_TYPE = "color-bgr"    # "affine" or "color-bgr", "color-rrr"
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
@@ -107,19 +108,30 @@ def compute_iou(w,h, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr):
     return iou
 
 def main():
-    rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_rot_vals_deg.txt")
-    trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_trans_vals.txt")
-    scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_scales.txt")
-
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
     )
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
-    dataset = CIFAR10(
-        root='./data', train=False, download=True, transform=trans,
-        rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
-    )
+    
+    if TRANSFORM_TYPE == "affine":
+        rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_rot_vals_deg.txt")
+        trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_trans_vals.txt")
+        scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_scales.txt")
+        dataset = CIFAR10(
+            root='./data', train=False, download=True, transform=trans,
+            rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
+        )
+    elif TRANSFORM_TYPE == "color-bgr":
+        dataset = CIFAR10(
+            root='./data', train=False, download=True, transform=trans,
+            rot_vals_deg=None, to_bgr=True, to_rrr=False,
+        )
+    elif TRANSFORM_TYPE == "color-rrr":
+        dataset = CIFAR10(
+            root='./data', train=False, download=True, transform=trans,
+            rot_vals_deg=None, to_bgr=False, to_rrr=True,
+        )
 
     cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/cifar_counterfactuals.npy"
     counterfactuals = np.load(
@@ -178,27 +190,37 @@ def main():
             t_edits_lr = np.array(t_edits_lr)
             t_edits_lr = np.append(t_edits_lr, np.ones((len(t_edits_lr),1)), axis=1)
 
-            # Reproject transformed edits based on given rot_val, trans_val, and scale
-            rot_val, trans_val, scale = t_cf['rot_vals_deg'],t_cf['trans_vals'],t_cf['scales']
-            reverse_trans = get_inverse_affine_matrix(center=(width//2, height//2), angle=rot_val, scale=scale, shear=[0,0], translate=trans_val)
-            
-            # print(f"reverse_trans: {reverse_trans}, t_edits_ul[0]: {t_edits_ul[0]}")
-            r_t_edits_ul = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_ul])
-            r_t_edits_ul = r_t_edits_ul[:,:2,0]
-            r_t_edits_lr = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_lr])
-            r_t_edits_lr = r_t_edits_lr[:,:2,0]
-
+            if TRANSFORM_TYPE=="affine":
+                # Reproject transformed edits based on given rot_val, trans_val, and scale
+                rot_val, trans_val, scale = t_cf['rot_vals_deg'],t_cf['trans_vals'],t_cf['scales']
+                reverse_trans = get_inverse_affine_matrix(center=(width//2, height//2), angle=rot_val, scale=scale, shear=[0,0], translate=trans_val)
+                
+                # print(f"reverse_trans: {reverse_trans}, t_edits_ul[0]: {t_edits_ul[0]}")
+                r_t_edits_ul = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_ul])
+                r_t_edits_ul = r_t_edits_ul[:,:2,0]
+                r_t_edits_lr = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_lr])
+                r_t_edits_lr = r_t_edits_lr[:,:2,0]
+            else:   # if no affine transformation, no need to do any change
+                r_t_edits_lr = t_edits_lr
+                r_t_edits_ul = t_edits_ul
             # Compute IoU
-            t_iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
-            logger.debug(f"t_iou: {t_iou}")
+            iou = compute_iou(width,height, orig_edits_ul, orig_edits_lr, r_t_edits_ul, r_t_edits_lr)
+            logger.debug(f"iou: {iou}")
 
             # Log results
             label = dataset.__getitem__(orig_cf["query_index"])[1]
-            scve_results.append([idx, label, rot_val, trans_val, scale, t_iou])
-            df = pd.DataFrame(scve_results, columns=[
-                "test_idx", "label", "rot_val", "trans_val", "scale", "t_iou"
-            ])
-            df.to_csv("scve_cifar_results.csv", index=False)
+
+            if TRANSFORM_TYPE=="affine":
+                scve_results.append([idx, label, rot_val, trans_val, scale, iou])
+                df = pd.DataFrame(scve_results, columns=[
+                    "test_idx", "label", "rot_val", "trans_val", "scale", "iou"
+                ])
+            else:
+                scve_results.append([idx, label, TRANSFORM_TYPE, iou])
+                df = pd.DataFrame(scve_results, columns=[
+                    "test_idx", "label", "transform_type", "iou"
+                ])
+            df.to_csv(f"scve_cifar_results_{TRANSFORM_TYPE}.csv", index=False)
 
             # Make visualizations
             if TO_GENERATE_IMGS:
@@ -217,14 +239,19 @@ def main():
                     distractor_index=t_cf["distractor_index"],
                     dataset=dataset,
                     n_pix=7,
-                    fname=f"output/counterfactuals_cifar_demo/example_{idx}_t.png",
+                    fname=f"output/counterfactuals_cifar_demo/example_{idx}_{TRANSFORM_TYPE}.png",
                     idx2label=idx2label,
                 )
-                
-    df = pd.DataFrame(scve_results, columns=[
-        "test_idx", "label", "rot_val", "trans_val", "scale", "t_iou"
-    ])
-    df.to_csv("scve_cifar_results.csv", index=False)
+    
+    if TRANSFORM_TYPE=="affine":
+        df = pd.DataFrame(scve_results, columns=[
+            "test_idx", "label", "rot_val", "trans_val", "scale", "iou"
+        ])
+    else:
+        df = pd.DataFrame(scve_results, columns=[
+            "test_idx", "label", "transform_type", "iou"
+        ])
+    df.to_csv(f"scve_cifar_results_{TRANSFORM_TYPE}.csv", index=False)
     print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
 if __name__ == "__main__":
