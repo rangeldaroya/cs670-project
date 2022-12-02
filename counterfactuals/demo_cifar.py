@@ -9,15 +9,81 @@ import os
 import numpy as np
 import torchvision
 from torchvision import transforms
+from loguru import logger
+import skimage
+from typing import List
+import math
+# from PIL import Image
 
 from utils.visualize import visualize_counterfactuals
 from data.cifar import CIFAR10
 
-
+NUM_IMGS = 10000
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 # parser = argparse.ArgumentParser(description="Visualize counterfactual explanations")
 # parser.add_argument("--config_path", type=str, required=True)
 
+def get_inverse_affine_matrix(
+    center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
+) -> List[float]:
+    # Helper method to compute inverse matrix for affine transformation
+    # Reference: https://pytorch.org/vision/main/_modules/torchvision/transforms/functional.html
+
+    # Pillow requires inverse affine transformation matrix:
+    # Affine matrix is : M = T * C * RotateScaleShear * C^-1
+    #
+    # where T is translation matrix: [1, 0, tx | 0, 1, ty | 0, 0, 1]
+    #       C is translation matrix to keep center: [1, 0, cx | 0, 1, cy | 0, 0, 1]
+    #       RotateScaleShear is rotation with scale and shear matrix
+    #
+    #       RotateScaleShear(a, s, (sx, sy)) =
+    #       = R(a) * S(s) * SHy(sy) * SHx(sx)
+    #       = [ s*cos(a - sy)/cos(sy), s*(-cos(a - sy)*tan(sx)/cos(sy) - sin(a)), 0 ]
+    #         [ s*sin(a - sy)/cos(sy), s*(-sin(a - sy)*tan(sx)/cos(sy) + cos(a)), 0 ]
+    #         [ 0                    , 0                                      , 1 ]
+    # where R is a rotation matrix, S is a scaling matrix, and SHx and SHy are the shears:
+    # SHx(s) = [1, -tan(s)] and SHy(s) = [1      , 0]
+    #          [0, 1      ]              [-tan(s), 1]
+    #
+    # Thus, the inverse is M^-1 = C * RotateScaleShear^-1 * C^-1 * T^-1
+
+    rot = math.radians(angle)
+    sx = math.radians(shear[0])
+    sy = math.radians(shear[1])
+
+    cx, cy = center
+    tx, ty = translate
+
+    # RSS without scaling
+    a = math.cos(rot - sy) / math.cos(sy)
+    b = -math.cos(rot - sy) * math.tan(sx) / math.cos(sy) - math.sin(rot)
+    c = math.sin(rot - sy) / math.cos(sy)
+    d = -math.sin(rot - sy) * math.tan(sx) / math.cos(sy) + math.cos(rot)
+
+    if inverted:
+        # Inverted rotation matrix with scale and shear
+        # det([[a, b], [c, d]]) == 1, since det(rotation) = 1 and det(shear) = 1
+        matrix = [d, -b, 0.0, -c, a, 0.0]
+        matrix = [x / scale for x in matrix]
+        # Apply inverse of translation and of center translation: RSS^-1 * C^-1 * T^-1
+        matrix[2] += matrix[0] * (-cx - tx) + matrix[1] * (-cy - ty)
+        matrix[5] += matrix[3] * (-cx - tx) + matrix[4] * (-cy - ty)
+        # Apply center translation: C * RSS^-1 * C^-1 * T^-1
+        matrix[2] += cx
+        matrix[5] += cy
+    else:
+        matrix = [a, b, 0.0, c, d, 0.0]
+        matrix = [x * scale for x in matrix]
+        # Apply inverse of center translation: RSS * C^-1
+        matrix[2] += matrix[0] * (-cx) + matrix[1] * (-cy)
+        matrix[5] += matrix[3] * (-cx) + matrix[4] * (-cy)
+        # Apply translation and center : T * C * RSS * C^-1
+        matrix[2] += cx + tx
+        matrix[5] += cy + ty
+
+    m = np.array([[matrix[0],matrix[1],matrix[2]],[matrix[3],matrix[4],matrix[5]]])
+    m = np.append(m,[[0,0,1]],axis=0)
+    return m
 
 def main():
     rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_cifar_rot_vals_deg.txt")
@@ -49,22 +115,86 @@ def main():
         cp_path, allow_pickle=True
     ).item()
 
+    # Note that these only contain correct predictions 
+    # (the processing of semantic cve doesn't include incorrect model predictions)
     cf_keys = list(counterfactuals.keys())
+    num_imgs_w_pairs = 0
+    n_pix = 7
+    width,height = 224,224
+    width_cell = width // n_pix
+    height_cell = height // n_pix
+
     # for idx in np.random.choice(list(counterfactuals.keys()), 5):
     for ctr, idx in enumerate(cf_keys):
-        print(f"Processing {ctr+1}/{len(cf_keys)}")
+        # logger.debug(f"Processing {ctr+1}/{len(cf_keys)}")
         cf = counterfactuals[idx]
+        # logger.debug(f"cf: {cf}")
+        if (idx+NUM_IMGS) in cf_keys:
+            logger.debug(f"idx={idx} has a pair")
+            num_imgs_w_pairs += 1
+            # if num_imgs_w_pairs<5:
+            #     continue
 
-        visualize_counterfactuals(
-            edits=cf["edits"],
-            query_index=cf["query_index"],
-            distractor_index=cf["distractor_index"],
-            dataset=dataset,
-            n_pix=7,
-            fname=f"output/counterfactuals_cifar_demo/example_{idx}.png",
-            idx2label=idx2label,
-        )
+            orig_idx = idx
+            t_idx = idx + NUM_IMGS  # idx of transformed img
+            orig_cf = counterfactuals[orig_idx]
+            t_cf = counterfactuals[t_idx]
 
+            # orig_edits = orig_cf["edits"]   # edits of original image
+            orig_edits = []
+            for o in orig_cf["edits"]:
+                cell_index_query = o[0]
+                row_index_query = cell_index_query // n_pix
+                col_index_query = cell_index_query % n_pix
+
+                x = int(col_index_query * width_cell)
+                y = int(row_index_query * height_cell)
+                orig_edits.append([x,y])
+            orig_edits = np.array(orig_edits)
+            # t_edits = t_cf["edits"]         # edits of transformed image
+            t_edits = []
+            for o in t_cf["edits"]:
+                cell_index_query = o[0]
+                row_index_query = cell_index_query // n_pix
+                col_index_query = cell_index_query % n_pix
+
+                x = int(col_index_query * width_cell)
+                y = int(row_index_query * height_cell)
+                t_edits.append([x,y])
+            t_edits = np.array(t_edits)
+            t_edits = np.append(t_edits, np.ones((len(t_edits),1)), axis=1)
+
+            # Reproject transformed edits based on given rot_val, trans_val, and scale
+            rot_val, trans_val, scale = t_cf['rot_vals_deg'],t_cf['trans_vals'],t_cf['scales']
+            reverse_trans = get_inverse_affine_matrix(center=(width//2, height//2), angle=rot_val, scale=scale, shear=[0,0], translate=trans_val)
+            
+            print(f"reverse_trans: {reverse_trans}, t_edits[0]: {t_edits[0]}")
+            r_t_edits = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits])
+            r_t_edits = r_t_edits[:,:2,0]
+            print(f"r_t_edits: {r_t_edits}, {r_t_edits.shape}")
+
+            print(f"orig_edits: {orig_edits}, t_edits: {t_edits}, rot_val: {rot_val}, trans_val: {trans_val}, scale: {scale}")
+
+            visualize_counterfactuals(
+                edits=orig_cf["edits"],
+                query_index=orig_cf["query_index"],
+                distractor_index=orig_cf["distractor_index"],
+                dataset=dataset,
+                n_pix=7,
+                fname=f"output/counterfactuals_cifar_demo/example_{idx}_orig1.png",
+                idx2label=idx2label,
+            )
+            visualize_counterfactuals(
+                edits=t_cf["edits"],
+                query_index=t_cf["query_index"],
+                distractor_index=t_cf["distractor_index"],
+                dataset=dataset,
+                n_pix=7,
+                fname=f"output/counterfactuals_cifar_demo/example_{idx}_t1.png",
+                idx2label=idx2label,
+            )
+            # break
+    print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
 if __name__ == "__main__":
     main()
