@@ -132,7 +132,7 @@ def main():
         if (idx+NUM_IMGS) in cf_keys:
             logger.debug(f"idx={idx} has a pair")
             num_imgs_w_pairs += 1
-            # if num_imgs_w_pairs<5:
+            # if num_imgs_w_pairs<70:
             #     continue
 
             orig_idx = idx
@@ -140,8 +140,9 @@ def main():
             orig_cf = counterfactuals[orig_idx]
             t_cf = counterfactuals[t_idx]
 
-            # orig_edits = orig_cf["edits"]   # edits of original image
-            orig_edits = []
+            # orig_edits_ul = orig_cf["edits"]   # edits of original image
+            orig_edits_ul = []     # coordinates for upper left corner of edit box
+            orig_edits_lr = []     # coordinates for lower right corner of edit box
             for o in orig_cf["edits"]:
                 cell_index_query = o[0]
                 row_index_query = cell_index_query // n_pix
@@ -149,10 +150,15 @@ def main():
 
                 x = int(col_index_query * width_cell)
                 y = int(row_index_query * height_cell)
-                orig_edits.append([x,y])
-            orig_edits = np.array(orig_edits)
+                orig_edits_ul.append([x,y])
+                orig_edits_lr.append([x+width_cell, y+height_cell])
+            orig_edits_ul = np.array(orig_edits_ul)
+            orig_edits_lr = np.array(orig_edits_lr)
+
+
             # t_edits = t_cf["edits"]         # edits of transformed image
-            t_edits = []
+            t_edits_ul = []     # coordinates for upper left corner of edit box
+            t_edits_lr = []     # coordinates for lower right corner of edit box
             for o in t_cf["edits"]:
                 cell_index_query = o[0]
                 row_index_query = cell_index_query // n_pix
@@ -160,20 +166,25 @@ def main():
 
                 x = int(col_index_query * width_cell)
                 y = int(row_index_query * height_cell)
-                t_edits.append([x,y])
-            t_edits = np.array(t_edits)
-            t_edits = np.append(t_edits, np.ones((len(t_edits),1)), axis=1)
+                t_edits_ul.append([x,y])
+                t_edits_lr.append([x+width_cell, y+height_cell])
+            t_edits_ul = np.array(t_edits_ul)
+            t_edits_ul = np.append(t_edits_ul, np.ones((len(t_edits_ul),1)), axis=1)
+            t_edits_lr = np.array(t_edits_lr)
+            t_edits_lr = np.append(t_edits_lr, np.ones((len(t_edits_lr),1)), axis=1)
 
             # Reproject transformed edits based on given rot_val, trans_val, and scale
             rot_val, trans_val, scale = t_cf['rot_vals_deg'],t_cf['trans_vals'],t_cf['scales']
             reverse_trans = get_inverse_affine_matrix(center=(width//2, height//2), angle=rot_val, scale=scale, shear=[0,0], translate=trans_val)
             
-            print(f"reverse_trans: {reverse_trans}, t_edits[0]: {t_edits[0]}")
-            r_t_edits = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits])
-            r_t_edits = r_t_edits[:,:2,0]
-            print(f"r_t_edits: {r_t_edits}, {r_t_edits.shape}")
+            print(f"reverse_trans: {reverse_trans}, t_edits_ul[0]: {t_edits_ul[0]}")
+            r_t_edits_ul = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_ul])
+            r_t_edits_ul = r_t_edits_ul[:,:2,0]
+            r_t_edits_lr = np.array([np.matmul(reverse_trans, np.reshape(t, (-1,1))) for t in t_edits_lr])
+            r_t_edits_lr = r_t_edits_lr[:,:2,0]
+            print(f"r_t_edits_ul: {r_t_edits_ul}, {r_t_edits_ul.shape}")
 
-            print(f"orig_edits: {orig_edits}, t_edits: {t_edits}, rot_val: {rot_val}, trans_val: {trans_val}, scale: {scale}")
+            print(f"orig_edits_ul: {orig_edits_ul}, t_edits_ul: {t_edits_ul}, rot_val: {rot_val}, trans_val: {trans_val}, scale: {scale}")
 
             visualize_counterfactuals(
                 edits=orig_cf["edits"],
