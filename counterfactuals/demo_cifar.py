@@ -18,10 +18,11 @@ import pandas as pd
 from utils.visualize import visualize_counterfactuals
 from data.cifar import CIFAR10
 
-TRANSFORM_TYPE = "color-bgr"    # "affine" or "color-bgr", "color-rrr"
+TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr"
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+cp_path = f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/cifar_counterfactuals_{TRANSFORM_TYPE}.npy"
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -133,7 +134,6 @@ def main():
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
         )
 
-    cp_path = "/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/cifar_counterfactuals.npy"
     counterfactuals = np.load(
         cp_path, allow_pickle=True
     ).item()
