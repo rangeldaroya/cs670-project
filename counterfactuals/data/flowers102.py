@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
 
 import PIL.Image
+import numpy as np
 
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive, download_url, verify_str_arg
 from torchvision.datasets import VisionDataset
@@ -53,6 +54,10 @@ class Flowers102(VisionDataset):
         rot_vals_deg=None,
         trans_vals=None,
         scales=None,
+
+
+        to_bgr=False,
+        to_rrr=False,
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
         self._split = verify_str_arg(split, "split", ("train", "val", "test"))
@@ -62,6 +67,9 @@ class Flowers102(VisionDataset):
         self.rot_vals_deg = rot_vals_deg
         self.trans_vals = trans_vals
         self.scales = scales
+
+        self.to_bgr = to_bgr
+        self.to_rrr = to_rrr
 
         if download:
             self.download()
@@ -85,7 +93,7 @@ class Flowers102(VisionDataset):
 
         self.len_orig = len(self._image_files)  # number of orig images
 
-        if self.rot_vals_deg is not None:
+        if (self.rot_vals_deg is not None) or to_bgr or to_rrr:
             for image_id in image_ids:
                 self._labels.append(image_id_to_label[image_id])
                 self._image_files.append(self._images_folder / f"image_{image_id:05d}.jpg")
@@ -98,15 +106,25 @@ class Flowers102(VisionDataset):
     def __getitem__(self, idx) -> Tuple[Any, Any]:
         image_file, label = self._image_files[idx], self._labels[idx]
         image = PIL.Image.open(image_file).convert("RGB")
-        if (idx > (self.len_orig-1)) and (self.rot_vals_deg is not None):
-            # Add data augmentations with random rotations/scale/trans defined
-            image = torchvision.transforms.functional.affine(
-                image,
-                angle=self.rot_vals_deg[idx],
-                translate=list(self.trans_vals[idx]),
-                scale=self.scales[idx],
-                shear=0,
-            )
+        if (idx > (self.len_orig-1)):
+            if (self.rot_vals_deg is not None):
+                # Add data augmentations with random rotations/scale/trans defined
+                image = torchvision.transforms.functional.affine(
+                    image,
+                    angle=self.rot_vals_deg[idx],
+                    translate=list(self.trans_vals[idx]),
+                    scale=self.scales[idx],
+                    shear=0,
+                )
+            elif self.to_rrr:
+                rrr_img = np.array(image).astype(float)
+                rrr_img[:,:,1] = 0
+                rrr_img[:,:,2] = 0
+                image = PIL.Image.fromarray(rrr_img.astype(np.uint8)) # convert to PIL image
+            elif self.to_bgr:
+                rgb_img = np.array(image).astype(float)
+                bgr_img = rgb_img[...,::-1]
+                image = PIL.Image.fromarray(bgr_img.astype(np.uint8)) # convert to PIL image
 
         if self.transform:
             image = self.transform(image)
