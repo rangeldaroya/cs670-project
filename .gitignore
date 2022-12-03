@@ -1,6 +1,7 @@
 data/*
 slurm-*
 *.pth
+*.txt
 
 counterfactuals/output/*
 counterfactuals/utils/__pycache__/*
@@ -14,3 +15,4 @@ src/data/*
 src/models/*
 outputs/*
 *.csv
+*.jpg
