@@ -255,9 +255,9 @@ def main():
             "query_target": query_pred,
             "distractor_target": distractor_target,
             "edits": list_of_edits,
-            "rot_vals_deg": rot_vals_deg,
-            "trans_vals": trans_vals,
-            "scales": scales,
+            "rot_vals_deg": rot_vals_deg[query_index],
+            "trans_vals": trans_vals[query_index],
+            "scales": scales[query_index],
         }
 
     # save result
