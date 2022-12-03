@@ -162,7 +162,7 @@ if __name__=="__main__":
     test_dl = torch.utils.data.DataLoader(
         testset, batch_size=1, shuffle=False#, num_workers=2
     )
-        num_imgs = len(test_dl)
+    num_imgs = len(test_dl)
     rot_vals_deg, trans_vals, scales = generate_affine_vals(num_imgs)
     np.savetxt("grad_cifar_rot_vals_deg.txt", rot_vals_deg)
     np.savetxt("grad_cifar_trans_vals.txt", trans_vals)
