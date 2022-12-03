@@ -61,6 +61,9 @@ class CIFAR10(VisionDataset):
             rot_vals_deg=None,
             trans_vals=None,
             scales=None,
+
+            to_bgr=False,
+            to_rrr=False,
     ) -> None:
 
         super(CIFAR10, self).__init__(root, transform=transform,
@@ -71,6 +74,9 @@ class CIFAR10(VisionDataset):
         self.rot_vals_deg = rot_vals_deg
         self.trans_vals = trans_vals
         self.scales = scales
+
+        self.to_bgr = to_bgr
+        self.to_rrr = to_rrr
 
         if download:
             self.download()
@@ -98,7 +104,10 @@ class CIFAR10(VisionDataset):
                 else:
                     self.targets.extend(entry['fine_labels'])
                 self.len_orig = len(self.data)
-                if (not self.train) and (rot_vals_deg is not None):  # using test set
+                if (not self.train) and (   # using test set
+                    (rot_vals_deg is not None) or
+                    to_bgr or to_rrr
+                ):  
                     # Add same data again
                     self.data.append(entry['data'])
                     if 'labels' in entry:
@@ -136,16 +145,27 @@ class CIFAR10(VisionDataset):
         # to return a PIL Image
         img = Image.fromarray(img)
 
-        if (index > (self.len_orig-1)) and (self.rot_vals_deg is not None):
-            # Add data augmentations with random rotations/scale/trans defined
-            # print(f"self.rot_vals_deg[index]: {self.rot_vals_deg[index]}, self.trans_vals[index]: {list(self.trans_vals[index])}, self.scales[index]: {self.scales[index]}")
-            img = torchvision.transforms.functional.affine(
-                img,
-                angle=self.rot_vals_deg[index],
-                translate=list(self.trans_vals[index]),
-                scale=self.scales[index],
-                shear=0,
-            )
+        if (index > (self.len_orig-1)):
+            if (self.rot_vals_deg is not None):
+                # Add data augmentations with random rotations/scale/trans defined
+                # print(f"self.rot_vals_deg[index]: {self.rot_vals_deg[index]}, self.trans_vals[index]: {list(self.trans_vals[index])}, self.scales[index]: {self.scales[index]}")
+                img = torchvision.transforms.functional.affine(
+                    img,
+                    angle=self.rot_vals_deg[index],
+                    translate=list(self.trans_vals[index]),
+                    scale=self.scales[index],
+                    shear=0,
+                )
+            elif self.to_rrr:
+                rrr_img = np.array(img).astype(float)
+                rrr_img[:,:,1] = 0
+                rrr_img[:,:,2] = 0
+                img = Image.fromarray(rrr_img.astype(np.uint8)) # convert to PIL image
+            elif self.to_bgr:
+                rgb_img = np.array(img).astype(float)
+                bgr_img = rgb_img[...,::-1]
+                img = Image.fromarray(bgr_img.astype(np.uint8)) # convert to PIL image
+        
 
         if self.transform is not None:
             img = self.transform(img)
