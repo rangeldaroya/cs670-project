@@ -26,7 +26,7 @@ from data.flowers102 import Flowers102
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
 TEST_BATCH_SIZE = 1
-MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
+MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 NUM_CLASSES = 102   # 102 oxford flowers
 RANDOM_SEED = 0
 NUM_IMGS = 6149    # num of images in test set (orig number)
@@ -91,6 +91,9 @@ def main():
 
     # parse args
     with open(args.config_path, "r") as stream:
+        if "goyal" in args.config_path:
+            SEMANTIC = False
+            SEMTANIC_PREFIX = "s" if SEMANTIC else ""
         config = yaml.safe_load(stream)
 
     # experiment_name = os.path.basename(args.config_path).split(".")[0]
@@ -106,9 +109,9 @@ def main():
     
     if TRANSFORM_TYPE == "affine":
         rot_vals_deg, trans_vals, scales = generate_affine_vals()
-        np.savetxt("scve_oxford_rot_vals_deg.txt", rot_vals_deg)
-        np.savetxt("scve_oxford_trans_vals.txt", trans_vals)
-        np.savetxt("scve_oxford_scales.txt", scales)
+        np.savetxt(SEMTANIC_PREFIX + "cve_oxford_rot_vals_deg.txt", rot_vals_deg)
+        np.savetxt(SEMTANIC_PREFIX + "cve_oxford_trans_vals.txt", trans_vals)
+        np.savetxt(SEMTANIC_PREFIX + "cve_oxford_scales.txt", scales)
     
         dataset = Flowers102(
             root='./data', split='test', download=True, transform=trans,
@@ -295,7 +298,7 @@ def main():
             }
 
     # save result
-    np.save(f"oxford_counterfactuals_{TRANSFORM_TYPE}.npy", counterfactuals)
+    np.save(f"oxford_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy", counterfactuals)
 
     # evaluation
     print("Generated {} counterfactual explanations".format(len(counterfactuals)))
