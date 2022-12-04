@@ -9,6 +9,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
+import PIL
 
 from torchvision.datasets.folder import default_loader
 import torchvision
@@ -97,9 +98,7 @@ class Cub(Dataset):
         else:
             self._data = self._data[self._data.is_training_img == 0]
 
-        if (not self._train) and (self.rot_vals_deg is not None):  # using test set
-            self.len_orig = len(self._data)
-
+        self.len_orig = len(self._data)
         self.targets = self._data["target"]
 
     def _check_dataset_folder(self):
@@ -145,14 +144,14 @@ class Cub(Dataset):
                     shear=0,
                 )
             elif self.to_rrr:
-                rrr_img = np.array(image).astype(float)
+                rrr_img = np.array(img).astype(float)
                 rrr_img[:,:,1] = 0
                 rrr_img[:,:,2] = 0
-                image = PIL.Image.fromarray(rrr_img.astype(np.uint8)) # convert to PIL image
+                img = PIL.Image.fromarray(rrr_img.astype(np.uint8)) # convert to PIL image
             elif self.to_bgr:
-                rgb_img = np.array(image).astype(float)
+                rgb_img = np.array(img).astype(float)
                 bgr_img = rgb_img[...,::-1]
-                image = PIL.Image.fromarray(bgr_img.astype(np.uint8)) # convert to PIL image
+                img = PIL.Image.fromarray(bgr_img.astype(np.uint8)) # convert to PIL image
 
         return self._transform(img), sample.target - 1
 
