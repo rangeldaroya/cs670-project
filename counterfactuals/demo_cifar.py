@@ -118,9 +118,9 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_rot_vals_deg.txt")
-        trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_trans_vals.txt")
-        scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_scales.txt")
+        rot_vals_deg = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_trans_vals.txt")
+        scales = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_scales.txt")
         dataset = CIFAR10(
             root='./data', train=False, download=True, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,

@@ -119,9 +119,9 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_rot_vals_deg.txt")
-        trans_vals = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
-        scales = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
+        rot_vals_deg = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
+        scales = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
         dataset = Cub(
             root='./data', train=False, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
