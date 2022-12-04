@@ -25,7 +25,7 @@ idx2label = open("./data/CUB_200_2011/classes.txt", "r").readlines()
 idx2label = [x[:-1].split(" ")[1].split(".")[1] for x in idx2label]
 device = "cuda"
 TO_APPEND_RESULTS = False   # set to True when there are previous results
-NUM_SAMPLES = 100    # number of samples to generate
+NUM_SAMPLES = 5794    # number of samples to generate
 
 np.random.seed(RANDOM_SEED)
 
@@ -49,15 +49,16 @@ def get_preprocess_transform():
 
     return trans  
 
-def batch_predict(images):
-    model.eval()
+def batch_predict(images, random=False):
+    m = random_model if random else model
+    m.eval()
     batch = torch.stack(tuple(preprocess_transform(i) for i in images), dim=0)
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+    m.to(device)
     batch = batch.to(device)
     
-    logits = model(batch)
+    logits = m(batch)
     probs = F.softmax(logits, dim=1)
     return probs.detach().cpu().numpy()
 
@@ -251,7 +252,7 @@ if __name__=="__main__":
         t_pred_class = idx2label[t_pred_idx]
 
         # predict with a random model
-        random_test_pred = batch_predict([pill_transf(pil_img)])
+        random_test_pred = batch_predict([pill_transf(pil_img)], True)
         random_pred_idx = random_test_pred.squeeze().argmax()
         random_pred_class = idx2label[random_pred_idx]
 
@@ -284,7 +285,7 @@ if __name__=="__main__":
         transformed_mask2 = transformed_grayscale_cam > np.mean(transformed_grayscale_cam)
 
         # CAM with random model
-        random_grayscale_cam = cam(input_tensor=preprocess_transform(pill_transf(pil_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
+        random_grayscale_cam = random_cam(input_tensor=preprocess_transform(pill_transf(pil_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
         random_grayscale_cam = random_grayscale_cam[0, :]
         random_visualization = show_cam_on_image(img, random_grayscale_cam, use_rgb=True)
         plt.imshow(random_visualization)

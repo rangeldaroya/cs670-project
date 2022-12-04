@@ -23,7 +23,7 @@ MODEL_PATH = "./models/resnet50_oxford102_acc0.80.pth"
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
 device = "cuda"
 TO_APPEND_RESULTS = False   # set to True when there are previous results
-NUM_SAMPLES = 100    # number of samples to generate
+NUM_SAMPLES = 6149    # number of samples to generate
 
 np.random.seed(RANDOM_SEED)
 
@@ -47,15 +47,16 @@ def get_preprocess_transform():
 
     return trans  
 
-def batch_predict(images):
-    model.eval()
+def batch_predict(images, random=False):
+    m = random_model if random else model
+    m.eval()
     batch = torch.stack(tuple(preprocess_transform(i) for i in images), dim=0)
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
+    m.to(device)
     batch = batch.to(device)
     
-    logits = model(batch)
+    logits = m(batch)
     probs = F.softmax(logits, dim=1)
     return probs.detach().cpu().numpy()
 
@@ -252,7 +253,7 @@ if __name__=="__main__":
         t_pred_class = idx2label[t_pred_idx]
 
         # predict on a random model
-        random_test_pred = batch_predict([pill_transf(pil_img)])
+        random_test_pred = batch_predict([pill_transf(pil_img)], True)
         random_pred_idx = random_test_pred.squeeze().argmax()
         random_pred_class = idx2label[random_pred_idx]
 
@@ -285,7 +286,7 @@ if __name__=="__main__":
         transformed_mask2 = transformed_grayscale_cam > np.mean(transformed_grayscale_cam)
 
         # CAM with random model
-        random_grayscale_cam = cam(input_tensor=preprocess_transform(pill_transf(pil_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
+        random_grayscale_cam = random_cam(input_tensor=preprocess_transform(pill_transf(pil_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
         random_grayscale_cam = random_grayscale_cam[0, :]
         random_visualization = show_cam_on_image(img, random_grayscale_cam, use_rgb=True)
         plt.imshow(random_visualization)
