@@ -30,6 +30,8 @@ MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_cub_acc0.83
 NUM_CLASSES = 200
 RANDOM_SEED = 0
 NUM_IMGS = 10000    # num of images in test set
+TRANSFORM_TYPE = "color-bgr"    # "affine" or "color-bgr", "color-rrr"
+
 
 def get_model_feats_logits(model, inp):
     def features(x):
@@ -97,24 +99,35 @@ def main():
     # os.makedirs(dirpath, exist_ok=True)
 
     # create dataset
-    rot_vals_deg, trans_vals, scales = generate_affine_vals()
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
     )
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
-    dataset = Cub(
-        train=False, transform=trans, return_image_only=False,
-        rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
-    )
+    if TRANSFORM_TYPE == "affine":
+        rot_vals_deg, trans_vals, scales = generate_affine_vals()
+        np.savetxt("scve_cub_rot_vals_deg.txt", rot_vals_deg)
+        np.savetxt("scve_cub_trans_vals.txt", trans_vals)
+        np.savetxt("scve_cub_scales.txt", scales)
+        dataset = Cub(
+            root='./data', train=False, transform=trans,
+            rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
+        )
+    elif TRANSFORM_TYPE == "color-bgr":
+        dataset = Cub(
+            root='./data', train=False, transform=trans,
+            rot_vals_deg=None, to_bgr=True, to_rrr=False,
+        )
+    elif TRANSFORM_TYPE == "color-rrr":
+        dataset = Cub(
+            root='./data', train=False, transform=trans,
+            rot_vals_deg=None, to_bgr=False, to_rrr=True,
+        )
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
     )
 
-    np.savetxt("scve_cub_rot_vals_deg.txt", rot_vals_deg)
-    np.savetxt("scve_cub_trans_vals.txt", trans_vals)
-    np.savetxt("scve_cub_scales.txt", scales)
 
     # device
     assert torch.cuda.is_available()
@@ -134,7 +147,6 @@ def main():
     features = result["features"]
     preds = result["preds"].numpy()
     targets = result["targets"].numpy()
-    print("137", preds.shape, targets.shape)
     print("Top-1 accuracy: {:.2f}".format(100 * result["top1"]))
 
     # compute query-distractor pairs
@@ -157,10 +169,21 @@ def main():
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
-        aux_dataset = Cub(
-            train=False, transform=trans, return_image_only=False,
-            rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
-        )
+        if TRANSFORM_TYPE == "affine":
+            aux_dataset = Cub(
+                root='./data', train=False, transform=trans,
+                rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
+            )
+        elif TRANSFORM_TYPE == "color-bgr":
+            aux_dataset = Cub(
+                root='./data', train=False, transform=trans,
+                rot_vals_deg=None, to_bgr=True, to_rrr=False,
+            )
+        elif TRANSFORM_TYPE == "color-rrr":
+            aux_dataset = Cub(
+                root='./data', train=False, transform=trans,
+                rot_vals_deg=None, to_bgr=False, to_rrr=True,
+            )
         aux_loader = torch.utils.data.DataLoader(
             aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
         )
@@ -246,20 +269,30 @@ def main():
             print("warning - no counterfactual @ index {}".format(query_index))
             continue
 
-        counterfactuals[query_index] = {
-            "query_index": query_index,
-            "distractor_index": distractor_index,
-            "query_target": query_pred,
-            "distractor_target": distractor_target,
-            "edits": list_of_edits,
-            "rot_vals_deg": rot_vals_deg[query_index],
-            "trans_vals": trans_vals[query_index],
-            "scales": scales[query_index],
-        }
+        if TRANSFORM_TYPE=="affine":
+            counterfactuals[query_index] = {
+                "query_index": query_index,
+                "distractor_index": distractor_index,
+                "query_target": query_pred,
+                "distractor_target": distractor_target,
+                "edits": list_of_edits,
+                "rot_vals_deg": rot_vals_deg[query_index],
+                "trans_vals": trans_vals[query_index],
+                "scales": scales[query_index],
+            }
+        else:
+            counterfactuals[query_index] = {
+                "query_index": query_index,
+                "distractor_index": distractor_index,
+                "query_target": query_pred,
+                "distractor_target": distractor_target,
+                "edits": list_of_edits,
+                "transform_type": TRANSFORM_TYPE,
+            }
 
     # save result
     # np.save(os.path.join(dirpath, "counterfactuals.npy"), counterfactuals)
-    np.save("cifar_counterfactuals.npy", counterfactuals)
+    np.save(f"cub_counterfactuals_{TRANSFORM_TYPE}.npy", counterfactuals)
 
     # evaluation
     print("Generated {} counterfactual explanations".format(len(counterfactuals)))
@@ -278,4 +311,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

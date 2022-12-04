@@ -37,6 +37,9 @@ class Cub(Dataset):
         rot_vals_deg=None,
         trans_vals=None,
         scales=None,
+
+        to_bgr=False,
+        to_rrr=False,
     ):
 
         self._dataset_folder = pathlib.Path("../data/CUB_200_2011")
@@ -49,6 +52,9 @@ class Cub(Dataset):
         self.rot_vals_deg = rot_vals_deg
         self.trans_vals = trans_vals
         self.scales = scales
+
+        self.to_bgr = to_bgr
+        self.to_rrr = to_rrr
 
         if not self._check_dataset_folder():
             raise RuntimeError(
@@ -127,16 +133,26 @@ class Cub(Dataset):
         img = self._loader(path)
         width, height = img.size
 
-        if (idx > (self.len_orig-1)) and (self.rot_vals_deg is not None):
-            # Add data augmentations with random rotations/scale/trans defined
-            # print(f"self.rot_vals_deg[index]: {self.rot_vals_deg[index]}, self.trans_vals[index]: {list(self.trans_vals[index])}, self.scales[index]: {self.scales[index]}")
-            img = torchvision.transforms.functional.affine(
-                img,
-                angle=self.rot_vals_deg[idx],
-                translate=list(self.trans_vals[idx]),
-                scale=self.scales[idx],
-                shear=0,
-            )
+        if (idx > (self.len_orig-1)):
+            if self.rot_vals_deg is not None:
+                # Add data augmentations with random rotations/scale/trans defined
+                # print(f"self.rot_vals_deg[index]: {self.rot_vals_deg[index]}, self.trans_vals[index]: {list(self.trans_vals[index])}, self.scales[index]: {self.scales[index]}")
+                img = torchvision.transforms.functional.affine(
+                    img,
+                    angle=self.rot_vals_deg[idx],
+                    translate=list(self.trans_vals[idx]),
+                    scale=self.scales[idx],
+                    shear=0,
+                )
+            elif self.to_rrr:
+                rrr_img = np.array(image).astype(float)
+                rrr_img[:,:,1] = 0
+                rrr_img[:,:,2] = 0
+                image = PIL.Image.fromarray(rrr_img.astype(np.uint8)) # convert to PIL image
+            elif self.to_bgr:
+                rgb_img = np.array(image).astype(float)
+                bgr_img = rgb_img[...,::-1]
+                image = PIL.Image.fromarray(bgr_img.astype(np.uint8)) # convert to PIL image
 
         return self._transform(img), sample.target - 1
 
