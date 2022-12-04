@@ -62,7 +62,7 @@ def get_query_distractor_pairs(
 
 
 @torch.no_grad()
-def process_dataset(model, dataloader, device, get_model_feats_logits, num_classes):
+def process_dataset(model, random_model, dataloader, device, get_model_feats_logits, num_classes, num_imgs):
     """
     Process a dataset using a pre-trained classification model.
     We return the spatial feature representations, the predictions,
@@ -72,16 +72,24 @@ def process_dataset(model, dataloader, device, get_model_feats_logits, num_class
 
     top1.to(device)
     model.to(device)
-
     model.eval()
+    if random_model is not None:
+        random_model.to(device)
+        random_model.eval()
 
     features = []
     preds = []
     targets = []
 
-    for _, (images, target) in enumerate(dataloader):
+    for data_idx, (images, target) in enumerate(dataloader):
         images, target = images.to(device), target.to(device)
-        output = get_model_feats_logits(model, images)
+        if random_model is not None: # apply trained model on first half, random model on 2nd half
+            if data_idx < num_imgs:
+                output = get_model_feats_logits(model, images)
+            else:
+                output = get_model_feats_logits(random_model, images)
+        else:
+            output = get_model_feats_logits(model, images)
         top1(output["logits"], target)
 
         features.append(output["features"].cpu())
