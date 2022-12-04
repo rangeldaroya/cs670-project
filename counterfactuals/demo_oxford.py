@@ -22,7 +22,9 @@ TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr"
 NUM_IMGS = 6149    # num of images in test set (orig number)
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
-cp_path = f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/oxford_counterfactuals_{TRANSFORM_TYPE}.npy"
+SEMANTIC = False
+SEMTANIC_PREFIX = "s" if SEMANTIC else ""
+cp_path = f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/oxford_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -116,9 +118,9 @@ def main():
     )
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_rot_vals_deg.txt")
-        trans_vals = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_trans_vals.txt")
-        scales = np.loadtxt("/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/scve_oxford_scales.txt")
+        rot_vals_deg = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_oxford_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_oxford_trans_vals.txt")
+        scales = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_oxford_scales.txt")
     
         dataset = Flowers102(
             root='./data', split='test', download=True, transform=trans,
@@ -223,7 +225,7 @@ def main():
                 df = pd.DataFrame(scve_results, columns=[
                     "test_idx", "label", "transform_type", "iou"
                 ])
-            df.to_csv(f"scve_oxford_results_{TRANSFORM_TYPE}.csv", index=False)
+            df.to_csv(f"{SEMTANIC_PREFIX}cve_oxford_results_{TRANSFORM_TYPE}.csv", index=False)
 
             # Make visualizations
             if TO_GENERATE_IMGS:
@@ -233,7 +235,7 @@ def main():
                     distractor_index=orig_cf["distractor_index"],
                     dataset=dataset,
                     n_pix=7,
-                    fname=f"output/counterfactuals_oxford_demo/example_{idx}_orig.png",
+                    fname=f"output/{SEMTANIC_PREFIX}counterfactuals_oxford_demo/example_{idx}_orig.png",
                     idx2label=idx2label,
                 )
                 visualize_counterfactuals(
@@ -242,7 +244,7 @@ def main():
                     distractor_index=t_cf["distractor_index"],
                     dataset=dataset,
                     n_pix=7,
-                    fname=f"output/counterfactuals_oxford_demo/example_{idx}_{TRANSFORM_TYPE}.png",
+                    fname=f"output/{SEMTANIC_PREFIX}counterfactuals_oxford_demo/example_{idx}_{TRANSFORM_TYPE}.png",
                     idx2label=idx2label,
                 )
     
@@ -254,7 +256,7 @@ def main():
         df = pd.DataFrame(scve_results, columns=[
             "test_idx", "label", "transform_type", "iou"
         ])
-    df.to_csv(f"scve_oxford_results_{TRANSFORM_TYPE}.csv", index=False)
+    df.to_csv(f"{SEMTANIC_PREFIX}cve_oxford_results_{TRANSFORM_TYPE}.csv", index=False)
     print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
 if __name__ == "__main__":

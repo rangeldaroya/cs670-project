@@ -23,7 +23,9 @@ NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = open("./data/CUB_200_2011/classes.txt", "r").readlines()
 idx2label = [x[:-1].split(" ")[1].split(".")[1] for x in idx2label]
-cp_path = f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/cub_counterfactuals_{TRANSFORM_TYPE}.npy"
+SEMANTIC = False
+SEMTANIC_PREFIX = "s" if SEMANTIC else ""
+cp_path = f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/cub_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -117,9 +119,9 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/scve_cub_rot_vals_deg.txt")
-        trans_vals = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/scve_cub_trans_vals.txt")
-        scales = np.loadtxt("/home/aaronsun_umass_edu/cs670-project/counterfactuals/scve_cub_scales.txt")
+        rot_vals_deg = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
+        scales = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
         dataset = Cub(
             root='./data', train=False, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
@@ -221,7 +223,7 @@ def main():
                 df = pd.DataFrame(scve_results, columns=[
                     "test_idx", "label", "transform_type", "iou"
                 ])
-            df.to_csv(f"scve_cub_results_{TRANSFORM_TYPE}.csv", index=False)
+            df.to_csv(f"{SEMTANIC_PREFIX}cve_cub_results_{TRANSFORM_TYPE}.csv", index=False)
 
             # Make visualizations
             if TO_GENERATE_IMGS:
@@ -231,7 +233,7 @@ def main():
                     distractor_index=orig_cf["distractor_index"],
                     dataset=dataset,
                     n_pix=7,
-                    fname=f"output/counterfactuals_cub_demo/example_{idx}_orig.png",
+                    fname=f"output/{SEMTANIC_PREFIX}counterfactuals_cub_demo/example_{idx}_orig.png",
                     idx2label=idx2label,
                 )
                 visualize_counterfactuals(
@@ -240,7 +242,7 @@ def main():
                     distractor_index=t_cf["distractor_index"],
                     dataset=dataset,
                     n_pix=7,
-                    fname=f"output/counterfactuals_cub_demo/example_{idx}_{TRANSFORM_TYPE}.png",
+                    fname=f"output/{SEMTANIC_PREFIX}counterfactuals_cub_demo/example_{idx}_{TRANSFORM_TYPE}.png",
                     idx2label=idx2label,
                 )
     
@@ -252,7 +254,7 @@ def main():
         df = pd.DataFrame(scve_results, columns=[
             "test_idx", "label", "transform_type", "iou"
         ])
-    df.to_csv(f"scve_cub_results_{TRANSFORM_TYPE}.csv", index=False)
+    df.to_csv(f"{SEMTANIC_PREFIX}cve_cub_results_{TRANSFORM_TYPE}.csv", index=False)
     print(f"Found {num_imgs_w_pairs} images with transformed pairs")
 
 if __name__ == "__main__":
