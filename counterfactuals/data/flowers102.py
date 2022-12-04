@@ -55,9 +55,10 @@ class Flowers102(VisionDataset):
         trans_vals=None,
         scales=None,
 
-
         to_bgr=False,
         to_rrr=False,
+
+        to_double_data_only=False,   # setting this to True will just double the data length (no transformations)
     ) -> None:
         super().__init__(root, transform=transform, target_transform=target_transform)
         self._split = verify_str_arg(split, "split", ("train", "val", "test"))
@@ -70,6 +71,8 @@ class Flowers102(VisionDataset):
 
         self.to_bgr = to_bgr
         self.to_rrr = to_rrr
+
+        self.to_double_data_only = to_double_data_only
 
         if download:
             self.download()
@@ -93,7 +96,7 @@ class Flowers102(VisionDataset):
 
         self.len_orig = len(self._image_files)  # number of orig images
 
-        if (self.rot_vals_deg is not None) or to_bgr or to_rrr:
+        if (self.rot_vals_deg is not None) or to_bgr or to_rrr or to_double_data_only:
             for image_id in image_ids:
                 self._labels.append(image_id_to_label[image_id])
                 self._image_files.append(self._images_folder / f"image_{image_id:05d}.jpg")
