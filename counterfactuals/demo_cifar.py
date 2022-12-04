@@ -18,13 +18,14 @@ import pandas as pd
 from utils.visualize import visualize_counterfactuals
 from data.cifar import CIFAR10
 
-TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr"
+HOME_DIR = "/home/rdaroya_umass_edu/Documents"
+TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr", "random-model"
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 SEMANTIC = False
 SEMTANIC_PREFIX = "s" if SEMANTIC else ""
-cp_path = f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/cifar_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
+cp_path = f"{HOME_DIR}/cs670-project/counterfactuals/cifar_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -118,9 +119,9 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_rot_vals_deg.txt")
-        trans_vals = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_trans_vals.txt")
-        scales = np.loadtxt(f"/home/rdaroya_umass_edu/Documents/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_scales.txt")
+        rot_vals_deg = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_trans_vals.txt")
+        scales = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cifar_scales.txt")
         dataset = CIFAR10(
             root='./data', train=False, download=True, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
@@ -134,6 +135,11 @@ def main():
         dataset = CIFAR10(
             root='./data', train=False, download=True, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
+        )
+    elif TRANSFORM_TYPE == "random-model":
+        dataset = CIFAR10(
+            root='./data', train=False, download=True, transform=trans,
+            rot_vals_deg=None, to_bgr=False, to_rrr=False, to_double_data_only=True,
         )
 
     counterfactuals = np.load(

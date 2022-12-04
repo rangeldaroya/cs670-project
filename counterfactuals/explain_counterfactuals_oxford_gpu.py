@@ -26,11 +26,12 @@ from data.flowers102 import Flowers102
 parser = argparse.ArgumentParser(description="Generate counterfactual explanations")
 parser.add_argument("--config_path", type=str, required=True)
 TEST_BATCH_SIZE = 1
-MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_oxford102_acc0.80.pth"
+MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 NUM_CLASSES = 102   # 102 oxford flowers
 RANDOM_SEED = 0
 NUM_IMGS = 6149    # num of images in test set (orig number)
-TRANSFORM_TYPE = "color-bgr"    # "affine" or "color-bgr", "color-rrr"
+TRANSFORM_TYPE = "random-model"    # "affine" or "color-bgr", "color-rrr", "random"
+                                    # Set to "random" if using random model
 
 
 def get_model_feats_logits(model, inp):
@@ -63,6 +64,14 @@ def get_classifier_head(model):
         model.fc,
     )
 
+def get_random_classifier_head(random_model):
+    return nn.Sequential(
+        random_model.layer4[1:],
+        random_model.avgpool,
+        nn.Flatten(start_dim=1),
+        random_model.fc,
+    )
+
 def get_dataset_targets(dataset, distractor_class):
     return (
         np.argwhere(np.array(dataset._labels) == distractor_class)
@@ -90,6 +99,7 @@ def main():
     args = parser.parse_args()
 
     # parse args
+    SEMTANIC_PREFIX = ""
     with open(args.config_path, "r") as stream:
         if "goyal" in args.config_path:
             SEMANTIC = False
@@ -127,6 +137,11 @@ def main():
             root='./data', split='test', download=True, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
         )
+    elif TRANSFORM_TYPE == "random-model":
+        dataset = Flowers102(
+            root='./data', split='test', download=True, transform=trans,
+            rot_vals_deg=None, to_bgr=False, to_rrr=False, to_double_data_only=True,
+        )
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
     )
@@ -139,6 +154,15 @@ def main():
 
     # load classifier
     print("Load classification model weights")
+    random_model = None
+    if TRANSFORM_TYPE == "random-model":
+        random_model = resnet50()
+        num_feats = random_model.fc.in_features
+        random_model.fc = nn.Sequential(nn.Linear(num_feats, 1024),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(1024, 102),   # 102 Oxford102 Flower categories
+        )
     model = resnet50(weights=ResNet50_Weights.DEFAULT)
     num_feats = model.fc.in_features
     model.fc = nn.Sequential(nn.Linear(num_feats, 1024),
@@ -150,7 +174,7 @@ def main():
 
     # process dataset
     print("Pre-compute classifier predictions")
-    result = process_dataset(model, dataloader, device, get_model_feats_logits, num_classes=NUM_CLASSES)
+    result = process_dataset(model, random_model, dataloader, device, get_model_feats_logits, num_classes=NUM_CLASSES, num_imgs=NUM_IMGS)
     features = result["features"]
     preds = result["preds"].numpy()
     targets = result["targets"].numpy()
@@ -172,6 +196,12 @@ def main():
     classifier_head = torch.nn.DataParallel(classifier_head.cuda())
     classifier_head.eval()
 
+    random_classifier_head = None
+    if TRANSFORM_TYPE == "random-model":
+        random_classifier_head = get_random_classifier_head(random_model)
+        random_classifier_head = torch.nn.DataParallel(random_classifier_head.cuda())
+        random_classifier_head.eval()
+
     # auxiliary features for soft constraint
     if config["counterfactuals_kwargs"]["apply_soft_constraint"]:
         print("Pre-compute auxiliary features for soft constraint")
@@ -190,6 +220,11 @@ def main():
             aux_dataset = Flowers102(
                 root='./data', split='test', download=True, transform=trans,
                 rot_vals_deg=None, to_bgr=False, to_rrr=True,
+            )
+        elif TRANSFORM_TYPE == "random-model":
+            aux_dataset = Flowers102(
+                root='./data', split='test', download=True, transform=trans,
+                rot_vals_deg=None, to_bgr=False, to_rrr=False, to_double_data_only=True,
             )
         aux_loader = torch.utils.data.DataLoader(
             aux_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False#, num_workers=2
@@ -258,10 +293,17 @@ def main():
 
         # compute counterfactual
         try:
+            if random_classifier_head is not None:
+                if query_index < NUM_IMGS:    # first half is original model; second half is random model
+                    head = classifier_head
+                else:
+                    head = random_classifier_head
+            else:
+                head = classifier_head
             list_of_edits = compute_counterfactual(
                 query=query,
                 distractor=distractor,
-                classification_head=classifier_head,
+                classification_head=head,
                 distractor_class=distractor_target,
                 query_aux_features=query_aux_features,
                 distractor_aux_features=distractor_aux_features,

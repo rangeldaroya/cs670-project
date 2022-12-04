@@ -41,6 +41,8 @@ class Cub(Dataset):
 
         to_bgr=False,
         to_rrr=False,
+
+        to_double_data_only=False,   # setting this to True will just double the data length (no transformations)
     ):
 
         self._dataset_folder = pathlib.Path("../data/CUB_200_2011")
@@ -56,6 +58,8 @@ class Cub(Dataset):
 
         self.to_bgr = to_bgr
         self.to_rrr = to_rrr
+
+        self.to_double_data_only = to_double_data_only
 
         if not self._check_dataset_folder():
             raise RuntimeError(
@@ -123,7 +127,9 @@ class Cub(Dataset):
         return self._parts_name_index
 
     def __len__(self):
-        return len(self._data) * 2
+        if (self.rot_vals_deg is not None) or self.to_double_data_only or self.to_rrr or self.to_bgr:
+            return len(self._data) * 2
+        return len(self._data)
 
     def __getitem__(self, idx):
         sample = self._data.iloc[idx % self.len_orig]

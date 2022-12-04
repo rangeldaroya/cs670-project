@@ -64,6 +64,8 @@ class CIFAR10(VisionDataset):
 
             to_bgr=False,
             to_rrr=False,
+
+            to_double_data_only=False,   # setting this to True will just double the data length (no transformations)
     ) -> None:
 
         super(CIFAR10, self).__init__(root, transform=transform,
@@ -77,6 +79,7 @@ class CIFAR10(VisionDataset):
 
         self.to_bgr = to_bgr
         self.to_rrr = to_rrr
+        self.to_double_data_only = to_double_data_only
 
         if download:
             self.download()
@@ -106,7 +109,7 @@ class CIFAR10(VisionDataset):
                 self.len_orig = len(self.data)
                 if (not self.train) and (   # using test set
                     (rot_vals_deg is not None) or
-                    to_bgr or to_rrr
+                    to_bgr or to_rrr or to_double_data_only
                 ):  
                     # Add same data again
                     self.data.append(entry['data'])
