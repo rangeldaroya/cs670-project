@@ -99,6 +99,7 @@ def main():
     args = parser.parse_args()
 
     # parse args
+    SEMTANIC_PREFIX = ""
     with open(args.config_path, "r") as stream:
         if "goyal" in args.config_path:
             SEMANTIC = False
