@@ -16,10 +16,10 @@ import skimage
 import pandas as pd
 
 RANDOM_SEED = 0
-MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
+MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
-device = "cpu"
-NUM_SAMPLES = 100    # number of samples to generate
+device = "cuda"
+NUM_SAMPLES = 6149    # number of samples to generate
 TO_APPEND_RESULTS = False    # set to True when there are previous results
 
 np.random.seed(RANDOM_SEED)
@@ -42,18 +42,19 @@ def get_preprocess_transform():
 
     return trans  
 
-def batch_predict(images):
-    model.eval()
+def batch_predict(images, random=False):
+    m = random_model if random else model
+    m.eval()
     batch = torch.stack(tuple(preprocess_transform(i) for i in images), dim=0)
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = "cpu"
-    model.to(device)
+    m.to(device)
     batch = batch.to(device)
     
-    logits = model(batch)
+    logits = m(batch)
     probs = F.softmax(logits, dim=1)
     return probs.detach().cpu().numpy()
+
 def get_reverse_affine_masks(rotated_mask, rotated_ones_mask, rot_val, scale_val, trans_val):
     # Reverse affine transform
     r_tform = skimage.transform.AffineTransform(
@@ -146,6 +147,14 @@ if __name__=="__main__":
     model.load_state_dict(torch.load(MODEL_PATH))
     model = model.to(device)
 
+    random_model = resnet50()
+    model.fc = nn.Sequential(nn.Linear(num_feats, 1024),
+        nn.ReLU(),
+        nn.Dropout(0.1),
+        nn.Linear(1024, 102),   # 102 Oxford102 Flower categories
+    )
+    random_model = random_model.to(device)
+
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
@@ -164,6 +173,7 @@ if __name__=="__main__":
     np.savetxt("lime_oxford_scales.txt", scales)
 
     model.eval()
+    random_model.eval()
     results = []
     # Load previous results to append to
     if TO_APPEND_RESULTS:
@@ -224,6 +234,11 @@ if __name__=="__main__":
         t_pred_idx = t_test_pred.squeeze().argmax()
         t_pred_class = idx2label[t_pred_idx]
 
+        # predict with a random model
+        random_test_pred = batch_predict([pill_transf(img)])
+        random_pred_idx = random_test_pred.squeeze().argmax()
+        random_pred_class = idx2label[random_pred_idx]
+
         # predict on red-tinted image
         rrr_test_pred = batch_predict([pill_transf(rrr_img)])
         rrr_pred_idx = rrr_test_pred.squeeze().argmax()
@@ -251,7 +266,7 @@ if __name__=="__main__":
         temp2, mask2 = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         img_boundry2 = mark_boundaries(temp2/255.0, mask2)
         plt.imshow(img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
         plt.close()
 
 
@@ -273,9 +288,29 @@ if __name__=="__main__":
         transformed_temp2, transformed_mask2 = transformed_explanation.get_image_and_mask(transformed_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         transformed_img_boundry2 = mark_boundaries(transformed_temp2/255.0, transformed_mask2)
         plt.imshow(transformed_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
         plt.close()
 
+        # Explain random model
+        print(f"Getting explanation for random model")
+        random_explainer = lime_image.LimeImageExplainer()
+        random_explanation = random_explainer.explain_instance(
+            np.array(pill_transf(img)), 
+            lambda x: batch_predict(x, random=True), # classification function
+            top_labels=5, 
+            hide_color=0, 
+            random_seed=RANDOM_SEED,
+            num_samples=1000) # number of images that will be sent to classification function
+
+        random_temp1, random_mask1 = random_explanation.get_image_and_mask(random_explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=False)
+        random_img_boundry1 = mark_boundaries(random_temp1/255.0, random_mask1)
+
+        # Shade areas that contribute to top prediction
+        random_temp2, random_mask2 = random_explanation.get_image_and_mask(random_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
+        random_img_boundry2 = mark_boundaries(random_temp2/255.0, random_mask2)
+        plt.imshow(random_img_boundry2)      
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{random_pred_class}_random_shade.jpg")
+        plt.close()
 
         # Explain red-tinted image
         print(f"Getting explanation for red-tinted image")
@@ -295,7 +330,7 @@ if __name__=="__main__":
         rrr_temp2, rrr_mask2 = rrr_explanation.get_image_and_mask(rrr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         rrr_img_boundry2 = mark_boundaries(rrr_temp2/255.0, rrr_mask2)
         plt.imshow(rrr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
         plt.close()
 
 
@@ -317,7 +352,7 @@ if __name__=="__main__":
         bgr_temp2, bgr_mask2 = bgr_explanation.get_image_and_mask(bgr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         bgr_img_boundry2 = mark_boundaries(bgr_temp2/255.0, bgr_mask2)
         plt.imshow(bgr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
         plt.close()
 
 
@@ -333,23 +368,26 @@ if __name__=="__main__":
         # neg_ious.append(neg_iou)
         print(f"t_pos_iou: {pos_iou}, t_neg_iou: {neg_iou}")
 
+        #Compute iou of random model
+        random_pos_iou, random_neg_iou = compute_iou(mask2, random_mask2)
+
         #Compute iou of tinted and bgr images
         rrr_pos_iou, rrr_neg_iou = compute_iou(mask2, rrr_mask2)
         bgr_pos_iou, bgr_neg_iou = compute_iou(mask2, bgr_mask2)
 
         # Log results
-        results.append([i, target_class, pred_class, t_pred_class, rrr_pred_class, bgr_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou, rrr_pos_iou, rrr_neg_iou, bgr_pos_iou, bgr_neg_iou])
+        results.append([i, target_class, pred_class, t_pred_class, random_pred_class, rrr_pred_class, bgr_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou, random_pos_iou, random_neg_iou, rrr_pos_iou, rrr_neg_iou, bgr_pos_iou, bgr_neg_iou])
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
         
         if (i+1) == NUM_SAMPLES:
             break
         df = pd.DataFrame(results, columns=[
-            "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
+            "test_idx", "target_class", "pred_class", "t_pred_class", "random_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "random_pos_iou", "random_neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
         ])
         df.to_csv("lime_oxford_results.csv", index=False)
     # print(f"pos_ious: {pos_ious}")
     # print(f"neg_ious: {neg_ious}")
     df = pd.DataFrame(results, columns=[
-        "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
+        "test_idx", "target_class", "pred_class", "t_pred_class", "random_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "random_pos_iou", "random_neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
     ])
     df.to_csv("lime_oxford_results.csv", index=False)
