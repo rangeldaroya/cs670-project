@@ -19,7 +19,7 @@ from utils.visualize import visualize_counterfactuals
 from data.cub import Cub
 
 HOME_DIR = "/home/rdaroya_umass_edu/Documents"
-TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr", "random-model"
+TRANSFORM_TYPE = "random-model"    # "affine" or "color-bgr", "color-rrr", "random-model"
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = open("./data/CUB_200_2011/classes.txt", "r").readlines()
@@ -124,22 +124,22 @@ def main():
         trans_vals = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
         scales = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
         )
     elif TRANSFORM_TYPE == "color-bgr":
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=None, to_bgr=True, to_rrr=False,
         )
     elif TRANSFORM_TYPE == "color-rrr":
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
         )
     elif TRANSFORM_TYPE == "random-model":
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=False, to_double_data_only=True,
         )
 
