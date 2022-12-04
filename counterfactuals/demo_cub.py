@@ -18,14 +18,15 @@ import pandas as pd
 from utils.visualize import visualize_counterfactuals
 from data.cub import Cub
 
-TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr"
+HOME_DIR = "/home/rdaroya_umass_edu/Documents"
+TRANSFORM_TYPE = "color-rrr"    # "affine" or "color-bgr", "color-rrr", "random-model"
 NUM_IMGS = 10000
 TO_GENERATE_IMGS = False    # set to True to generate image visualizations
 idx2label = open("./data/CUB_200_2011/classes.txt", "r").readlines()
 idx2label = [x[:-1].split(" ")[1].split(".")[1] for x in idx2label]
 SEMANTIC = False
 SEMTANIC_PREFIX = "s" if SEMANTIC else ""
-cp_path = f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/cub_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
+cp_path = f"{HOME_DIR}/cs670-project/counterfactuals/cub_{SEMTANIC_PREFIX}counterfactuals_{TRANSFORM_TYPE}.npy"
 
 def get_inverse_affine_matrix(
     center: List[float], angle: float, translate: List[float], scale: float, shear: List[float], inverted: bool = True
@@ -119,9 +120,9 @@ def main():
     trans = transforms.Compose([transforms.Resize(224), transforms.CenterCrop(224), transforms.ToTensor(), normalize])
     
     if TRANSFORM_TYPE == "affine":
-        rot_vals_deg = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_rot_vals_deg.txt")
-        trans_vals = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
-        scales = np.loadtxt(f"/home/aaronsun_umass_edu/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
+        rot_vals_deg = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_rot_vals_deg.txt")
+        trans_vals = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_trans_vals.txt")
+        scales = np.loadtxt(f"{HOME_DIR}/cs670-project/counterfactuals/{SEMTANIC_PREFIX}cve_cub_scales.txt")
         dataset = Cub(
             root='./data', train=False, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
@@ -135,6 +136,11 @@ def main():
         dataset = Cub(
             root='./data', train=False, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
+        )
+    elif TRANSFORM_TYPE == "random-model":
+        dataset = Cub(
+            root='./data', train=False, transform=trans,
+            rot_vals_deg=None, to_bgr=False, to_rrr=False, to_double_data_only=True,
         )
 
     counterfactuals = np.load(
