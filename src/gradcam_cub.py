@@ -152,6 +152,12 @@ if __name__=="__main__":
     model.load_state_dict(torch.load(MODEL_PATH))
     model = model.to(device)
 
+    random_model = resnet50()
+    random_model.fc = nn.Sequential(
+        nn.Linear(num_feats, 200) # 200 CUB categories
+    )
+    random_model = random_model.to(device)
+
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]
@@ -173,7 +179,11 @@ if __name__=="__main__":
     target_layers = [model.layer4[-1]]
     cam = GradCAM(model=model, target_layers=target_layers, use_cuda=(device=="cuda"))
 
+    random_target_layers = [random_model.layer4[-1]]
+    random_cam = GradCAM(model=random_model, target_layers=random_target_layers, use_cuda=(device=="cuda"))
+
     model.eval()
+    random_model.eval()
     results = []
     # Load previous results to append to
     if TO_APPEND_RESULTS:
@@ -240,6 +250,11 @@ if __name__=="__main__":
         t_pred_idx = t_test_pred.squeeze().argmax()
         t_pred_class = idx2label[t_pred_idx]
 
+        # predict with a random model
+        random_test_pred = batch_predict([pill_transf(pil_img)])
+        random_pred_idx = random_test_pred.squeeze().argmax()
+        random_pred_class = idx2label[random_pred_idx]
+
         # predict on red-tinted image
         rrr_test_pred = batch_predict([pill_transf(pil_rrr_img)])
         rrr_pred_idx = rrr_test_pred.squeeze().argmax()
@@ -267,6 +282,15 @@ if __name__=="__main__":
         plt.savefig(f"./outputs/gradcam/cub/{i:02d}_t{target_class}_p{t_pred_class}_gradcam_t.jpg")
         plt.close()
         transformed_mask2 = transformed_grayscale_cam > np.mean(transformed_grayscale_cam)
+
+        # CAM with random model
+        random_grayscale_cam = cam(input_tensor=preprocess_transform(pill_transf(pil_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
+        random_grayscale_cam = random_grayscale_cam[0, :]
+        random_visualization = show_cam_on_image(img, random_grayscale_cam, use_rgb=True)
+        plt.imshow(random_visualization)
+        plt.savefig(f"./outputs/gradcam/cub/{i:02d}_t{target_class}_p{random_pred_class}_gradcam_random.jpg")
+        plt.close()
+        random_mask2 = random_grayscale_cam > np.mean(random_grayscale_cam)
 
         # CAM on red tinted image
         rrr_grayscale_cam = cam(input_tensor=preprocess_transform(pill_transf(pil_rrr_img)).unsqueeze(0), targets=[ClassifierOutputTarget(targets[0])])
@@ -297,23 +321,26 @@ if __name__=="__main__":
         # neg_ious.append(neg_iou)
         print(f"t_pos_iou: {pos_iou}, t_neg_iou: {neg_iou}")
 
+        #Compute iou of random model
+        random_pos_iou, random_neg_iou = compute_iou(mask2, random_mask2)
+
         #Compute iou of tinted and bgr images
         rrr_pos_iou, rrr_neg_iou = compute_iou(mask2, rrr_mask2)
         bgr_pos_iou, bgr_neg_iou = compute_iou(mask2, bgr_mask2)
 
         # Log results
-        results.append([i, target_class, pred_class, t_pred_class, rrr_pred_class, bgr_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou, rrr_pos_iou, rrr_neg_iou, bgr_pos_iou, bgr_neg_iou])
+        results.append([i, target_class, pred_class, t_pred_class, random_pred_class, rrr_pred_class, bgr_pred_class, is_rot_only, rot_val_deg, trans_val, scale_val, pos_iou, neg_iou, random_pos_iou, random_neg_iou, rrr_pos_iou, rrr_neg_iou, bgr_pos_iou, bgr_neg_iou])
         print(f"Done marking img {i+1:02d}/{len(test_dl)}")
         
         if (i+1) == NUM_SAMPLES:
             break
         df = pd.DataFrame(results, columns=[
-            "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
+            "test_idx", "target_class", "pred_class", "t_pred_class", "random_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "random_pos_iou", "random_neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
         ])
         df.to_csv("grad_cub_results.csv", index=False)
     # print(f"pos_ious: {pos_ious}")
     # print(f"neg_ious: {neg_ious}")
     df = pd.DataFrame(results, columns=[
-        "test_idx", "target_class", "pred_class", "t_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
+        "test_idx", "target_class", "pred_class", "t_pred_class", "random_pred_class", "rrr_pred_class", "bgr_pred_class", "is_rot_only", "rot_val_deg", "trans_val", "scale_val", "pos_iou", "neg_iou", "random_pos_iou", "random_neg_iou", "rrr_pos_iou", "rrr_neg_iou", "bgr_pos_iou", "bgr_neg_iou"
     ])
     df.to_csv("grad_cub_results.csv", index=False)
