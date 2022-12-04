@@ -24,7 +24,7 @@ idx2label = [x[:-1].split(" ")[1].split(".")[1] for x in idx2label]
 device = "cuda"
 TO_APPEND_RESULTS = False   # set to True when there are previous results
 
-NUM_SAMPLES = 100    # number of samples to generate
+NUM_SAMPLES = 5794    # number of samples to generate
 
 np.random.seed(RANDOM_SEED)
 

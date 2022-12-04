@@ -16,10 +16,10 @@ import skimage
 import pandas as pd
 
 RANDOM_SEED = 0
-MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_oxford102_acc0.80.pth"
+MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_oxford102_acc0.80.pth"
 idx2label = ['pink primrose', 'hard-leaved pocket orchid', 'canterbury bells', 'sweet pea', 'english marigold', 'tiger lily', 'moon orchid', 'bird of paradise', 'monkshood', 'globe thistle', 'snapdragon', "colt's foot", 'king protea', 'spear thistle', 'yellow iris', 'globe-flower', 'purple coneflower', 'peruvian lily', 'balloon flower', 'giant white arum lily', 'fire lily', 'pincushion flower', 'fritillary', 'red ginger', 'grape hyacinth', 'corn poppy', 'prince of wales feathers', 'stemless gentian', 'artichoke', 'sweet william', 'carnation', 'garden phlox', 'love in the mist', 'mexican aster', 'alpine sea holly', 'ruby-lipped cattleya', 'cape flower', 'great masterwort', 'siam tulip', 'lenten rose', 'barbeton daisy', 'daffodil', 'sword lily', 'poinsettia', 'bolero deep blue', 'wallflower', 'marigold', 'buttercup', 'oxeye daisy', 'common dandelion', 'petunia', 'wild pansy', 'primula', 'sunflower', 'pelargonium', 'bishop of llandaff', 'gaura', 'geranium', 'orange dahlia', 'pink-yellow dahlia', 'cautleya spicata', 'japanese anemone', 'black-eyed susan', 'silverbush', 'californian poppy', 'osteospermum', 'spring crocus', 'bearded iris', 'windflower', 'tree poppy', 'gazania', 'azalea', 'water lily', 'rose', 'thorn apple', 'morning glory', 'passion flower', 'lotus', 'toad lily', 'anthurium', 'frangipani', 'clematis', 'hibiscus', 'columbine', 'desert-rose', 'tree mallow', 'magnolia', 'cyclamen', 'watercress', 'canna lily', 'hippeastrum', 'bee balm', 'ball moss', 'foxglove', 'bougainvillea', 'camellia', 'mallow', 'mexican petunia', 'bromelia', 'blanket flower', 'trumpet creeper', 'blackberry lily']
-device = "cpu"
-NUM_SAMPLES = 100    # number of samples to generate
+device = "cuda"
+NUM_SAMPLES = 6149    # number of samples to generate
 TO_APPEND_RESULTS = False    # set to True when there are previous results
 
 np.random.seed(RANDOM_SEED)
@@ -266,7 +266,7 @@ if __name__=="__main__":
         temp2, mask2 = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         img_boundry2 = mark_boundaries(temp2/255.0, mask2)
         plt.imshow(img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
         plt.close()
 
 
@@ -288,7 +288,7 @@ if __name__=="__main__":
         transformed_temp2, transformed_mask2 = transformed_explanation.get_image_and_mask(transformed_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         transformed_img_boundry2 = mark_boundaries(transformed_temp2/255.0, transformed_mask2)
         plt.imshow(transformed_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
         plt.close()
 
         # Explain random model
@@ -330,7 +330,7 @@ if __name__=="__main__":
         rrr_temp2, rrr_mask2 = rrr_explanation.get_image_and_mask(rrr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         rrr_img_boundry2 = mark_boundaries(rrr_temp2/255.0, rrr_mask2)
         plt.imshow(rrr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
         plt.close()
 
 
@@ -352,7 +352,7 @@ if __name__=="__main__":
         bgr_temp2, bgr_mask2 = bgr_explanation.get_image_and_mask(bgr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         bgr_img_boundry2 = mark_boundaries(bgr_temp2/255.0, bgr_mask2)
         plt.imshow(bgr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/oxford/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
+        plt.savefig(f"./outputs/lime/oxford/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
         plt.close()
 
 

@@ -16,12 +16,12 @@ import skimage
 import pandas as pd
 
 RANDOM_SEED = 0     # set this to have consistent results over runs
-MODEL_PATH = "/home/rdaroya_umass_edu/Documents/cs670-project/models/resnet50_cifar10_acc0.82.pth"
+MODEL_PATH = "/home/aaronsun_umass_edu/cs670-project/models/resnet50_cifar10_acc0.82.pth"
 idx2label = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-device = "cpu"
+device = "cuda"
 TO_APPEND_RESULTS = False   # set to True when there are previous results
 
-NUM_SAMPLES = 100    # number of samples to generate
+NUM_SAMPLES = 10000    # number of samples to generate
 
 np.random.seed(RANDOM_SEED)
 
@@ -268,7 +268,7 @@ if __name__=="__main__":
         temp2, mask2 = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         img_boundry2 = mark_boundaries(temp2/255.0, mask2)
         plt.imshow(img_boundry2)      
-        plt.savefig(f"../outputs/lime/cifar/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
+        plt.savefig(f"./outputs/lime/cifar/{i:02d}_t{target_class}_p{pred_class}_shade.jpg")
         plt.close()
 
 
@@ -290,7 +290,7 @@ if __name__=="__main__":
         transformed_temp2, transformed_mask2 = transformed_explanation.get_image_and_mask(transformed_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         transformed_img_boundry2 = mark_boundaries(transformed_temp2/255.0, transformed_mask2)
         plt.imshow(transformed_img_boundry2)      
-        plt.savefig(f"../outputs/lime/cifar/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
+        plt.savefig(f"./outputs/lime/cifar/{i:02d}_t{target_class}_p{t_pred_class}_t_shade.jpg")
         plt.close()
 
         # Explain random model
@@ -332,7 +332,7 @@ if __name__=="__main__":
         rrr_temp2, rrr_mask2 = rrr_explanation.get_image_and_mask(rrr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         rrr_img_boundry2 = mark_boundaries(rrr_temp2/255.0, rrr_mask2)
         plt.imshow(rrr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/cifar/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
+        plt.savefig(f"./outputs/lime/cifar/{i:02d}_t{target_class}_p{rrr_pred_class}_rrr_shade.jpg")
         plt.close()
 
 
@@ -354,7 +354,7 @@ if __name__=="__main__":
         bgr_temp2, bgr_mask2 = bgr_explanation.get_image_and_mask(bgr_explanation.top_labels[0], positive_only=False, num_features=10, hide_rest=False)
         bgr_img_boundry2 = mark_boundaries(bgr_temp2/255.0, bgr_mask2)
         plt.imshow(bgr_img_boundry2)      
-        plt.savefig(f"../outputs/lime/cifar/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
+        plt.savefig(f"./outputs/lime/cifar/{i:02d}_t{target_class}_p{bgr_pred_class}_bgr_shade.jpg")
         plt.close()
 
 
