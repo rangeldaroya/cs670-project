@@ -111,17 +111,17 @@ def main():
         np.savetxt("scve_cub_trans_vals.txt", trans_vals)
         np.savetxt("scve_cub_scales.txt", scales)
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
         )
     elif TRANSFORM_TYPE == "color-bgr":
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=None, to_bgr=True, to_rrr=False,
         )
     elif TRANSFORM_TYPE == "color-rrr":
         dataset = Cub(
-            root='./data', train=False, transform=trans,
+            train=False, transform=trans,
             rot_vals_deg=None, to_bgr=False, to_rrr=True,
         )
     dataloader = torch.utils.data.DataLoader(
@@ -171,17 +171,17 @@ def main():
         aux_model, aux_dim, n_pix = auxiliary_model.get_auxiliary_model()
         if TRANSFORM_TYPE == "affine":
             aux_dataset = Cub(
-                root='./data', train=False, transform=trans,
+                train=False, transform=trans,
                 rot_vals_deg=rot_vals_deg, trans_vals=trans_vals, scales=scales,
             )
         elif TRANSFORM_TYPE == "color-bgr":
             aux_dataset = Cub(
-                root='./data', train=False, transform=trans,
+                train=False, transform=trans,
                 rot_vals_deg=None, to_bgr=True, to_rrr=False,
             )
         elif TRANSFORM_TYPE == "color-rrr":
             aux_dataset = Cub(
-                root='./data', train=False, transform=trans,
+                train=False, transform=trans,
                 rot_vals_deg=None, to_bgr=False, to_rrr=True,
             )
         aux_loader = torch.utils.data.DataLoader(
