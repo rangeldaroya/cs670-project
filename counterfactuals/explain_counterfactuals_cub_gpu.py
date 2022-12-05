@@ -100,12 +100,13 @@ def main():
     args = parser.parse_args()
 
     # parse args
-    SEMTANIC_PREFIX = ""
+    SEMTANIC_PREFIX = "s"
     with open(args.config_path, "r") as stream:
         if "goyal" in args.config_path:
             SEMANTIC = False
             SEMTANIC_PREFIX = "s" if SEMANTIC else ""
         config = yaml.safe_load(stream)
+    print(f"Using semantic prefix: {SEMTANIC_PREFIX}. Transform type: {TRANSFORM_TYPE}")
 
     # experiment_name = os.path.basename(args.config_path).split(".")[0]
     # dirpath = os.path.join(Path.output_root_dir(), experiment_name)
