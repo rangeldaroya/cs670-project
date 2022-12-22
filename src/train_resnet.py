@@ -69,7 +69,7 @@ def evaluate_model(val_dl, model):
             num_correct += (predicted == targets).sum().item()
 
             logger.debug(f"test_loss: {test_loss}, num_correct: {num_correct}, num_total: {num_total}")
-
+    test_loss = test_loss/num_total
     accuracy = num_correct/num_total
     return test_loss, accuracy
 
