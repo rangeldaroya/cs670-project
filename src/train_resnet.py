@@ -106,4 +106,8 @@ if __name__=="__main__":
     test_loss, accuracy = evaluate_model(test_dl, model)
     logger.info(f"test_loss: {test_loss}, accuracy: {accuracy}")
 
+    # Save model
+    if not os.path.exists(config['out_dir']):
+        logger.warning(f"{config['out_dir']} does not exist. Creating directory.")
+        os.makedirs(config["out_dir"])
     torch.save(model.state_dict(), f"{config['out_dir']}/resnet50_{config['dataset']}_acc{accuracy:.02f}.pth")
