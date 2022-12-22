@@ -1,0 +1,21 @@
+train_batch_size: 32
+test_batch_size: 32
+# num_workers: 8
+dataset: 'cub200'
+datapath: ''
+out_dir: '../ckpts'
+
+model: ResNet50
+model_kwargs:
+  num_classes: 200
+
+pred_module:
+  optimizer: SGD
+  lr: 0.001
+  momentum: 0.9
+  weight_decay: 0.0005
+
+trainer:
+  gpus: 1
+  num_nodes: 1
+  max_epochs: 100

@@ -1,0 +1,19 @@
+train_batch_size: 32
+test_batch_size: 32
+# num_workers: 8
+dataset: 'cifar10'
+datapath: ''
+out_dir: '../ckpts'
+
+model: ResNet50
+model_kwargs:
+  num_classes: 10
+
+pred_module:
+  optimizer: 'Adam'
+  lr: 0.001
+
+trainer:
+  gpus: 1
+  num_nodes: 1
+  max_epochs: 5
