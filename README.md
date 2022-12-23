@@ -10,10 +10,14 @@
         - activate environment: `conda activate cs670-project`
         - install pytorch 1.12.1: `conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 -c pytorch`
 3. Install additional packages with: `pip install -r requirements.txt`
-4. Run scripts
-    - To train resnet50 on cifar: 
-        - Local: `python src/train_resnet_cifar10.py`
-        - Unity: `sbatch script_cifar.sh`
+4. Run scripts to train model. Go to `src`.
+    - Local: 
+        - `python train_resnet.py --config_path configs/pred_models/cifar10_res50.yaml`
+        - `python train_resnet.py --config_path configs/pred_models/cub200_res50.yaml`
+        - `python train_resnet.py --config_path configs/pred_models/oxford102_res50.yaml`
+    - Unity: 
+        - `sbatch script_train_resnet.sh`
+        - Note: change specified config_path to desired dataset
 5. To run scripts for explainability frameworks:
     - Lime: 
         -Create directories: `output/lime/cifar`, `output/lime/oxford`, `output/lime/cub`

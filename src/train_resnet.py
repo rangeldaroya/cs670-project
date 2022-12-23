@@ -74,11 +74,11 @@ def evaluate_model(val_dl, model):
     return test_loss, accuracy
 
 if __name__=="__main__":
-    logger.debug("Training prediction model")
     # Load config file
     args = parser.parse_args()
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
+    logger.debug(f"Training prediction model with {config}")
 
     # Check for GPU
     if torch.cuda.is_available():  
