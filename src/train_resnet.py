@@ -1,25 +1,13 @@
 # from models.resnet import resnet50
 import argparse
 import torch
-from torchvision.models import resnet50, ResNet50_Weights
 from loguru import logger
-import numpy as np
 import yaml
-
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
-
 from tqdm import tqdm
-import pickle
 import os
 import matplotlib.pyplot as plt
-
 
 from utils.model import get_model, get_optimizer
 from dataloader.dataset import get_dataset
