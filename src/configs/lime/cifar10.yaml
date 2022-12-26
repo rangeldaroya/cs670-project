@@ -1,0 +1,18 @@
+test_batch_size: 1
+# num_workers: 8
+dataset: 'cifar10'
+datapath: ''
+
+out_dir: '../outputs/lime'
+config_dir: "configs/lime"
+random_seed: 0
+model_path: "../ckpts/resnet50_cifar10_acc0.83.pth"
+idx2label: ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+to_append_results: False   # set to True to append results to existing csv
+to_save_imgs: True   # set to True to save results in out_dir
+
+num_samples: 10000  # number of samples to generate
+start_idx: 0
+end_idx: 600
+
+transform_types: ["affine", "random", "rrr", "bgr"]

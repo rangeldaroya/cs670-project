@@ -3,8 +3,11 @@ from torch import nn
 from torchvision.models import resnet50, ResNet50_Weights
 
 
-def get_model(dataset, device):
-    model = resnet50(weights=ResNet50_Weights.DEFAULT)
+def get_model(dataset, device, is_random=False, model_path=None):
+    if is_random:
+        model = resnet50()
+    else:
+        model = resnet50(weights=ResNet50_Weights.DEFAULT)
     model = model.to(device)
 
     num_feats = model.fc.in_features
@@ -39,6 +42,8 @@ def get_model(dataset, device):
     else:
         raise NotImplementedError(f"Dataset specified [{dataset}] not implemented")
 
+    if model_path:
+        model.load_state_dict(torch.load(model_path))
     model = model.to(device)
     return model
 

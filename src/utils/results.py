@@ -1,0 +1,60 @@
+import pandas as pd
+
+
+def save_and_update_results(
+    i,
+    results,
+    target_class,
+    pred_class,
+    pos_ious,
+    neg_ious,
+    class_preds,
+    config,
+    is_rot_only,
+    rot_val_deg,
+    trans_val,
+    scale_val,
+):
+    results.append([
+        i, target_class,
+        pred_class,
+        class_preds['affine'],
+        class_preds['random'],
+        class_preds['rrr'],
+        class_preds['bgr'],
+        is_rot_only,
+        rot_val_deg,
+        trans_val,
+        scale_val,
+        pos_ious['affine'],
+        neg_ious['affine'],
+        pos_ious['random'],
+        neg_ious['random'],
+        pos_ious['rrr'],
+        neg_ious['rrr'],
+        pos_ious['bgr'],
+        neg_ious['bgr'],
+    ])
+    df = pd.DataFrame(results, columns=[
+        "test_idx",
+        "target_class",
+        "pred_class",
+        "t_pred_class",
+        "random_pred_class",
+        "rrr_pred_class",
+        "bgr_pred_class",
+        "is_rot_only",
+        "rot_val_deg",
+        "trans_val",
+        "scale_val",
+        "pos_iou",
+        "neg_iou",
+        "random_pos_iou",
+        "random_neg_iou",
+        "rrr_pos_iou",
+        "rrr_neg_iou",
+        "bgr_pos_iou",
+        "bgr_neg_iou",
+    ])
+    df.to_csv(f"{config['out_dir']}/lime_{config['dataset']}_results_{config['start_idx']}_{config['end_idx']}.csv", index=False)
+    return results
