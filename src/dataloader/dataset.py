@@ -51,3 +51,20 @@ def get_dataset(dataset):
         raise NotImplementedError(f"Dataset specified [{dataset}] not implemented")
     
     return trainset, testset
+
+def get_transforms():
+    # TODO: Figure out why transform for CUB is different in lime vs resnet training
+    pil_transf = transforms.Compose([
+        transforms.Resize(224),
+        transforms.CenterCrop(224)
+    ])
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+    preprocess_trans = transforms.Compose([
+        transforms.ToTensor(),
+        normalize
+    ])
+    
+    return pil_transf, preprocess_trans
