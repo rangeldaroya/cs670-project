@@ -24,6 +24,9 @@
             - `python explain_lime.py --config_path configs/lime/cifar10.yaml`
             - `python explain_lime.py --config_path configs/lime/cub200.yaml`
             - `python explain_lime.py --config_path configs/lime/oxford102.yaml`
+    - Unity: 
+        - `sbatch script_lime.sh`
+        - Note: change specified config_path to desired dataset
     - Semantic CVE: 
         - Create directories:  `output/semantic-cve/cifar`, `output/semantic-cve/oxford`, `output/semantic-cve/cub`
         - Install the following:
