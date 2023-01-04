@@ -32,7 +32,6 @@ def get_affine_img(img, ones_mask, is_rot_only, trans_val, rot_val, rot_val_deg,
         t_img = skimage.transform.rotate(img, rot_val_deg)
         t_ones_mask = skimage.transform.rotate(ones_mask, rot_val_deg)
     
-    t_img = Image.fromarray(np.uint8((t_img-np.min(t_img))*255/(np.max(t_img)-np.min(t_img)))).convert('RGB')
     return t_img, t_ones_mask
 
 
@@ -137,10 +136,9 @@ def get_lime_result(
         )
     else:
         raise NotImplementedError
-        
-    
+
     t_img = Image.fromarray(np.uint8((t_img-np.min(t_img))*255/(np.max(t_img)-np.min(t_img)))).convert('RGB')
-    
+
     # predict on transformed image
     t_test_pred = batch_predict([pill_transf(t_img)])
     t_pred_idx = t_test_pred.squeeze().argmax()

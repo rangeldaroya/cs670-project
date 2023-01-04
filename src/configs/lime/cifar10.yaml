@@ -13,6 +13,6 @@ to_save_imgs: True   # set to True to save results in out_dir
 
 num_samples: 10000  # number of samples to generate
 start_idx: 0
-end_idx: 600
+end_idx: 1  # NOTE: indexing starts from 0
 
 transform_types: ["affine", "random", "rrr", "bgr"]

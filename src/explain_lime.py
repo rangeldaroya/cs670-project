@@ -193,7 +193,7 @@ if __name__=="__main__":
             trans_val,
             scale_val,
         )
-        print(f"Done marking img {i+1:02d}/{len(test_dl)}")
+        logger.info(f"Done marking img {i+1:02d}/{len(test_dl)} [idx={i}]")
         
         if i >= config['end_idx']:
             break
