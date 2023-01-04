@@ -1,4 +1,3 @@
-# from models.resnet import resnet50
 import argparse
 import torch
 from loguru import logger
