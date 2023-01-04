@@ -20,7 +20,10 @@
         - Note: change specified config_path to desired dataset
 5. To run scripts for explainability frameworks:
     - Lime: 
-        -Create directories: `output/lime/cifar`, `output/lime/oxford`, `output/lime/cub`
+        - Local:
+            - `python explain_lime.py --config_path configs/lime/cifar10.yaml`
+            - `python explain_lime.py --config_path configs/lime/cub200.yaml`
+            - `python explain_lime.py --config_path configs/lime/oxford102.yaml`
     - Semantic CVE: 
         - Create directories:  `output/semantic-cve/cifar`, `output/semantic-cve/oxford`, `output/semantic-cve/cub`
         - Install the following:

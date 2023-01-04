@@ -64,7 +64,11 @@ if __name__=="__main__":
     with open(args.config_path, "r") as stream:
         config = yaml.safe_load(stream)
     logger.debug(f"LIME run with {config}")
-    idx2label = config['idx2label']
+    if config["dataset"] == "cub200":
+        idx2label = open("./data/CUB_200_2011/classes.txt", "r").readlines()
+        idx2label = [x[:-1].split(" ")[1].split(".")[1] for x in idx2label]
+    else:
+        idx2label = config['idx2label']
 
     # Check for GPU
     if torch.cuda.is_available():  
